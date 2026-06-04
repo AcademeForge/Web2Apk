@@ -37,6 +37,7 @@ html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
   --shadow-glow:0 0 60px rgba(124,106,255,0.18);
   --transition:all 0.28s cubic-bezier(0.4,0,0.2,1);
   --radius-sm:8px;--radius-md:14px;--radius-lg:20px;--radius-xl:28px;
+  --header-h:68px;
 }
 [data-theme="light"]{
   --bg-base:#f2f2ff;
@@ -90,11 +91,11 @@ body{
   width:80px;height:80px;border-radius:22px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:900;color:#fff;
+  overflow:hidden;
   box-shadow:0 0 80px var(--accent-glow);
   animation:popIn 0.65s cubic-bezier(0.34,1.56,0.64,1) both;
-  letter-spacing:-1px;
 }
+.splash-logo-img{width:90px;height:90px;object-fit:contain}
 .splash-name{font-family:'Playfair Display',serif;font-size:1.7rem;font-weight:800;animation:fadeUp 0.5s 0.2s ease both;letter-spacing:-0.5px}
 .splash-bar{width:120px;height:2px;background:var(--bg-elevated);border-radius:2px;overflow:hidden;animation:fadeUp 0.5s 0.35s ease both}
 .splash-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));animation:barLoad 0.9s 0.45s ease forwards;width:0}
@@ -114,42 +115,82 @@ body{
     linear-gradient(90deg,var(--border) 1px,transparent 1px);
   background-size:64px 64px;
   mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black,transparent);
+  -webkit-mask-image:radial-gradient(ellipse 80% 50% at 50% 0%,black,transparent);
 }
 @keyframes orbFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-40px) scale(1.05)}}
 
-/* ── HEADER ── */
+/* ════════════════════════════════════════
+   HEADER — fixed 3-column layout
+   Col 1: logo (flex:0 auto, left)
+   Col 2: nav  (flex:1, centered)
+   Col 3: controls (flex:0 auto, right)
+════════════════════════════════════════ */
 #header{
   position:sticky;top:0;z-index:1000;
-  background:rgba(7,7,18,0.85);
+  background:rgba(7,7,18,0.88);
   backdrop-filter:blur(24px) saturate(180%);
+  -webkit-backdrop-filter:blur(24px) saturate(180%);
   border-bottom:1px solid var(--border);
-  transition:var(--transition),background 0.35s;
+  transition:background 0.35s,border-color 0.35s;
 }
-[data-theme="light"] #header{background:rgba(242,242,255,0.85)}
+[data-theme="light"] #header{background:rgba(242,242,255,0.88)}
 #header.scrolled{border-bottom-color:var(--border-hover);box-shadow:0 4px 30px rgba(0,0,0,0.25)}
-.header-inner{max-width:1240px;margin:0 auto;padding:0 28px;display:flex;align-items:center;height:68px;gap:20px}
-.logo-wrap{display:flex;align-items:center;gap:12px;text-decoration:none;flex-shrink:0;cursor:pointer;transition:transform 0.25s}
+
+/* The single row that contains everything */
+.header-inner{
+  max-width:1240px;
+  margin:0 auto;
+  padding:0 28px;
+  height:var(--header-h);
+  display:flex;
+  align-items:center;
+  gap:0;
+}
+
+/* ── Col 1: Logo ── */
+.logo-wrap{
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;cursor:pointer;
+  flex:0 0 auto;
+  transition:transform 0.25s;
+  margin-right:auto; /* pushes nav to center naturally with right-auto trick */
+}
 .logo-wrap:hover{transform:scale(1.03)}
 .logo-img{
   width:38px;height:38px;border-radius:11px;
   background:linear-gradient(135deg,var(--accent),var(--accent2));
   display:flex;align-items:center;justify-content:center;
-  font-family:'Playfair Display',serif;font-weight:900;font-size:0.85rem;color:#fff;
+  overflow:hidden;
   box-shadow:0 4px 16px var(--accent-glow);
-  transition:box-shadow 0.25s;
+  transition:box-shadow 0.25s;flex-shrink:0;
 }
 .logo-wrap:hover .logo-img{box-shadow:0 6px 24px var(--accent-glow)}
-.logo-name{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--text-primary);letter-spacing:-0.3px}
+.header-logo-img{width:100%;height:100%;object-fit:contain;border-radius:11px}
+.logo-name{
+  font-family:'Playfair Display',serif;
+  font-size:1.05rem;font-weight:700;
+  color:var(--text-primary);letter-spacing:-0.3px;
+  white-space:nowrap;
+}
 
-nav{display:flex;align-items:center;gap:2px;flex:1;justify-content:center}
+/* ── Col 2: Nav (centered absolutely relative to header) ── */
+/* We use position:absolute trick to truly center nav regardless of logo/controls widths */
+#header nav{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  display:flex;align-items:center;gap:2px;
+  pointer-events:auto;
+}
 nav a{
   padding:8px 15px;border-radius:var(--radius-sm);
   font-size:0.875rem;font-weight:500;color:var(--text-secondary);
   text-decoration:none;cursor:pointer;transition:var(--transition);
-  position:relative;letter-spacing:0.1px;
+  position:relative;letter-spacing:0.1px;white-space:nowrap;
 }
 nav a::after{
-  content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%) scaleX(0);
+  content:'';position:absolute;bottom:4px;left:50%;
+  transform:translateX(-50%) scaleX(0);
   width:16px;height:1.5px;background:var(--accent);border-radius:1px;
   transition:transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
 }
@@ -157,23 +198,31 @@ nav a:hover{color:var(--text-primary);background:rgba(124,106,255,0.07)}
 nav a.active{color:var(--text-primary);background:rgba(124,106,255,0.10)}
 nav a.active::after{transform:translateX(-50%) scaleX(1)}
 
-.header-right{display:flex;align-items:center;gap:10px;flex-shrink:0}
+/* ── Col 3: Controls (right) ── */
+.header-controls{
+  display:flex;align-items:center;gap:8px;
+  flex:0 0 auto;
+  margin-left:auto; /* pushes itself right */
+}
+
+/* Back button */
 .back-nav-btn{
   display:none;align-items:center;gap:7px;
   padding:7px 13px;border-radius:var(--radius-sm);
   background:var(--bg-card2);border:1px solid var(--border-hover);
   color:var(--text-secondary);font-size:0.8rem;font-weight:600;
   cursor:pointer;transition:var(--transition);font-family:'Outfit',sans-serif;
-  letter-spacing:0.1px;
+  letter-spacing:0.1px;white-space:nowrap;
 }
 .back-nav-btn.show{display:flex}
 .back-nav-btn:hover{color:var(--text-primary);border-color:var(--accent);background:rgba(124,106,255,0.08);transform:translateX(-2px)}
 
+/* Theme toggle */
 .theme-toggle{
   width:46px;height:26px;border-radius:13px;
   background:var(--bg-elevated);border:1px solid var(--border-hover);
   position:relative;cursor:pointer;transition:var(--transition);
-  display:flex;align-items:center;padding:3px;
+  display:flex;align-items:center;padding:3px;flex-shrink:0;
 }
 .theme-toggle:hover{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,255,0.12)}
 .theme-toggle-thumb{
@@ -185,28 +234,58 @@ nav a.active::after{transform:translateX(-50%) scaleX(1)}
   box-shadow:0 2px 8px var(--accent-glow);
 }
 [data-theme="light"] .theme-toggle-thumb{transform:translateX(20px)}
-#menu-toggle{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--text-secondary);border-radius:var(--radius-sm);transition:var(--transition)}
+
+/* Hamburger — hidden on desktop, visible on mobile */
+#menu-toggle{
+  display:none;
+  background:none;border:none;cursor:pointer;
+  padding:8px;color:var(--text-secondary);
+  border-radius:var(--radius-sm);transition:var(--transition);
+  flex-shrink:0;
+}
 #menu-toggle:hover{background:var(--bg-card2);color:var(--text-primary)}
-#menu-toggle span{display:block;width:22px;height:1.5px;background:currentColor;border-radius:1px;margin:5px 0;transition:var(--transition)}
+#menu-toggle span{
+  display:block;width:22px;height:1.5px;
+  background:currentColor;border-radius:1px;
+  margin:5px 0;transition:var(--transition);
+}
 #menu-toggle.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
 #menu-toggle.open span:nth-child(2){opacity:0;transform:scaleX(0)}
 #menu-toggle.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+
+/* ── Mobile menu (slide from right) ── */
 #mobile-menu{
-  position:fixed;top:68px;left:0;right:0;bottom:0;
-  background:var(--bg-base);z-index:999;padding:24px 20px;
-  flex-direction:column;gap:4px;overflow-y:auto;
-  transform:translateX(100%);transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
+  position:fixed;
+  top:var(--header-h);right:0;
+  width:min(320px,85vw);
+  bottom:0;
+  background:var(--bg-base);
+  z-index:998;
+  padding:20px 16px;
+  flex-direction:column;gap:4px;
+  overflow-y:auto;
+  transform:translateX(100%);
+  transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
   display:flex;
+  border-left:1px solid var(--border);
+  box-shadow:-16px 0 48px rgba(0,0,0,0.35);
 }
 #mobile-menu.open{transform:translateX(0)}
 #mobile-menu a{
   padding:14px 18px;border-radius:var(--radius-md);
   font-size:1rem;font-weight:500;color:var(--text-secondary);
-  text-decoration:none;cursor:pointer;border:1px solid transparent;transition:var(--transition);
-  display:flex;align-items:center;gap:14px;
+  text-decoration:none;cursor:pointer;border:1px solid transparent;
+  transition:var(--transition);display:flex;align-items:center;gap:14px;
 }
 #mobile-menu a:hover{color:var(--text-primary);background:var(--bg-card2);border-color:var(--border)}
 #mobile-menu a i{width:18px;text-align:center;color:var(--text-muted);font-size:0.9rem}
+/* Mobile menu overlay backdrop */
+#mobile-backdrop{
+  display:none;position:fixed;inset:0;z-index:997;
+  background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+#mobile-backdrop.open{display:block}
 
 /* ── PAGES ── */
 .page{position:relative;z-index:1;display:none;opacity:0;transition:opacity 0.3s ease}
@@ -262,20 +341,34 @@ nav a.active::after{transform:translateX(-50%) scaleX(1)}
 .btn-hero.secondary{background:var(--bg-card2);color:var(--text-secondary);border:1px solid var(--border-hover)}
 .btn-hero.secondary:hover{color:var(--text-primary);border-color:var(--accent);transform:translateY(-2px);background:rgba(124,106,255,0.06)}
 
-/* Floaters */
-.hero-floaters{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+/* ── FLOATERS — draggable ── */
+.hero-floaters{position:absolute;inset:0;pointer-events:none;overflow:visible;z-index:2}
 .floater{
   position:absolute;padding:9px 16px;
   background:var(--bg-card2);border:1px solid var(--border-hover);
   border-radius:100px;font-size:0.72rem;font-weight:600;color:var(--text-muted);
   display:flex;align-items:center;gap:7px;
-  animation:floatAnim 7s ease-in-out infinite;
-  transition:var(--transition);
+  cursor:grab;user-select:none;touch-action:none;
+  pointer-events:auto;
+  transition:box-shadow 0.2s,border-color 0.2s;
+  /* default positions via inline style set by JS */
 }
-.floater:nth-child(1){top:12%;left:6%;animation-delay:0s}
-.floater:nth-child(2){top:22%;right:7%;animation-delay:-2.5s}
-.floater:nth-child(3){bottom:22%;left:9%;animation-delay:-4.5s}
-.floater:nth-child(4){bottom:28%;right:6%;animation-delay:-1.2s}
+.floater:hover{border-color:var(--border-hover);color:var(--text-secondary)}
+.floater.is-dragging{
+  cursor:grabbing;
+  box-shadow:0 8px 32px rgba(124,106,255,0.3);
+  border-color:var(--accent);
+  z-index:100;
+  transition:none; /* instant during drag */
+}
+/* Idle float animation only when NOT dragging */
+.floater:not(.is-dragging):not(.was-dragged){
+  animation:floatAnim 7s ease-in-out infinite;
+}
+.floater:nth-child(1):not(.is-dragging):not(.was-dragged){animation-delay:0s}
+.floater:nth-child(2):not(.is-dragging):not(.was-dragged){animation-delay:-2.5s}
+.floater:nth-child(3):not(.is-dragging):not(.was-dragged){animation-delay:-4.5s}
+.floater:nth-child(4):not(.is-dragging):not(.was-dragged){animation-delay:-1.2s}
 @keyframes floatAnim{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-16px) rotate(1deg)}}
 
 /* Stats */
@@ -303,7 +396,6 @@ nav a.active::after{transform:translateX(-50%) scaleX(1)}
 .section-sub{font-size:0.95rem;color:var(--text-secondary);max-width:480px;margin:0 auto;line-height:1.7}
 
 /* ── BUILDER PAGE ── */
-#builder-page{padding:0 0 100px}
 .builder-wrap{max-width:820px;margin:0 auto;padding:0 24px}
 .builder-card{
   background:var(--bg-card);border:1px solid var(--border);
@@ -401,18 +493,14 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 .progress-card{
   background:var(--bg-card);border:1px solid var(--border);
   border-radius:var(--radius-xl);padding:44px 36px;text-align:center;
-  box-shadow:var(--shadow-card);
-  display:none;
+  box-shadow:var(--shadow-card);display:none;
 }
 .progress-card.show{display:block;animation:pageIn 0.35s ease forwards}
-
 .progress-spinner-wrap{position:relative;width:90px;height:90px;margin:0 auto 28px}
 .progress-spinner-wrap svg{animation:spin 2.5s linear infinite}
 .progress-spinner-val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:0.95rem;font-weight:700;color:var(--text-primary)}
 .progress-status-text{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--text-primary);margin-bottom:8px;letter-spacing:-0.3px}
 .progress-sub{font-size:0.88rem;color:var(--text-secondary);margin-bottom:8px;line-height:1.6}
-
-/* Time remaining banner */
 .time-banner{
   background:linear-gradient(135deg,rgba(124,106,255,0.1),rgba(176,106,255,0.05));
   border:1px solid rgba(124,106,255,0.2);border-radius:var(--radius-md);
@@ -420,14 +508,10 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
   display:flex;align-items:center;gap:12px;
 }
 .time-banner-icon{font-size:1.1rem;color:var(--accent);flex-shrink:0}
-.time-banner-content{}
 .time-banner-title{font-size:0.82rem;font-weight:700;color:var(--text-primary);margin-bottom:2px}
 .time-banner-detail{font-size:0.75rem;color:var(--text-secondary);line-height:1.4}
-
-/* Progress bar track */
 .track{height:4px;background:var(--bg-elevated);border-radius:4px;overflow:hidden;margin:18px 0 22px}
 .track-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--accent3));border-radius:4px;transition:width 0.6s cubic-bezier(0.4,0,0.2,1)}
-
 .stages{display:flex;flex-direction:column;gap:6px;text-align:left}
 .stage{
   display:flex;align-items:center;gap:11px;
@@ -442,7 +526,6 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 .stage.done .stage-dot{background:var(--green);box-shadow:0 0 8px var(--green-glow)}
 .stage-icon{width:18px;text-align:center;font-size:0.72rem;flex-shrink:0;opacity:0;transition:var(--transition)}
 .stage.done .stage-icon{opacity:1;color:var(--green)}
-
 @keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.85)}}
 
@@ -450,8 +533,7 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 .success-card{
   background:var(--bg-card);border:1px solid var(--border);
   border-radius:var(--radius-xl);overflow:hidden;
-  box-shadow:var(--shadow-card);
-  display:none;
+  box-shadow:var(--shadow-card);display:none;
 }
 .success-card.show{display:block;animation:pageIn 0.4s ease forwards}
 .success-card-top{padding:40px 36px;text-align:center;background:linear-gradient(135deg,rgba(15,240,160,0.04),rgba(124,106,255,0.04));border-bottom:1px solid var(--border);position:relative;overflow:hidden}
@@ -584,7 +666,7 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 @keyframes toastOut{from{opacity:1}to{opacity:0;transform:translateX(40px)}}
 
 /* ── MODAL ── */
-#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(10px);z-index:6000;display:none;align-items:center;justify-content:center;padding:24px}
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);z-index:6000;display:none;align-items:center;justify-content:center;padding:24px}
 #modal-overlay.active{display:flex}
 .modal{background:var(--bg-card2);border:1px solid var(--border-hover);border-radius:var(--radius-xl);padding:32px;max-width:480px;width:100%;animation:popIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both;box-shadow:var(--shadow-glow)}
 .modal-icon{width:60px;height:60px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;margin-bottom:18px}
@@ -608,7 +690,8 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 .footer-inner{max-width:1140px;margin:0 auto}
 .footer-top{display:grid;grid-template-columns:1.6fr 1fr 1fr 1fr;gap:44px;margin-bottom:44px}
 .footer-logo{display:flex;align-items:center;gap:11px;margin-bottom:14px}
-.footer-logo-img{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:0.78rem;color:#fff;box-shadow:0 3px 10px var(--accent-glow)}
+.footer-logo-img{width:32px;height:32px;border-radius:9px;overflow:hidden;background:linear-gradient(135deg,var(--accent),var(--accent2))}
+.footer-logo-image{width:100%;height:100%;object-fit:cover;border-radius:9px}
 .footer-logo-name{font-family:'Playfair Display',serif;font-size:1rem;font-weight:700;color:var(--text-primary)}
 .footer-desc{font-size:0.8rem;color:var(--text-muted);line-height:1.75;margin-bottom:16px}
 .footer-socials{display:flex;gap:8px}
@@ -630,20 +713,23 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 #scroll-top.show{opacity:1;transform:translateY(0)}
 #scroll-top:hover{color:var(--text-primary);border-color:var(--accent);box-shadow:0 4px 16px var(--accent-glow);transform:translateY(-2px)}
 
-/* Utilities */
-.hidden{display:none!important}
-.text-center{text-align:center}
-
-/* ── RESPONSIVE ── */
+/* ════════════════════════════════════════
+   RESPONSIVE
+════════════════════════════════════════ */
+/* Tablet: 1024px — collapse nav to hamburger */
 @media(max-width:1024px){
-  nav{display:none}
-  #menu-toggle{display:block}
-  .back-nav-btn{display:none!important}
+  #header nav{display:none}          /* hide centered nav */
+  #menu-toggle{display:flex;align-items:center;justify-content:center}
+  .back-nav-btn{font-size:0.72rem;padding:6px 10px}
   .features-grid{grid-template-columns:repeat(2,1fr)}
   .about-grid{grid-template-columns:1fr}
   .footer-top{grid-template-columns:1fr 1fr}
 }
+
+/* Mobile: 768px */
 @media(max-width:768px){
+  .header-inner{padding:0 16px}
+  .logo-name{font-size:0.95rem}
   .hero-stats .hero-stat{min-width:120px}
   .dl-actions{grid-template-columns:1fr}
   .footer-top{grid-template-columns:1fr}
@@ -653,68 +739,13 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
   .input-row{grid-template-columns:1fr}
   #toast-container{left:14px;right:14px}
   .card-body{padding:22px 20px}
+  .back-nav-btn span{display:none} /* hide text, keep icon */
 }
+
 @media(max-width:480px){
-  .header-inner{padding:0 16px}
-}
-  .splash-logo{
-  width:80px;
-  height:80px;
-  border-radius:22px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  overflow:hidden;
-  box-shadow:0 0 80px var(--accent-glow);
-  animation:popIn 0.65s cubic-bezier(0.34,1.56,0.64,1) both;
-}
-
-.splash-logo-img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  border-radius:22px;
-}
-  .splash-logo-img{
-  width:90px;
-  height:90px;
-  object-fit:contain;
-}
-
-  .logo-img{
-  width:38px;
-  height:38px;
-  border-radius:11px;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-family:'Playfair Display',serif;
-  font-weight:900;
-  font-size:0.85rem;
-  color:#fff;
-  box-shadow:0 4px 16px var(--accent-glow);
-  transition:box-shadow 0.25s;
-}
-  .footer-logo-img{
-  width:32px;
-  height:32px;
-  border-radius:9px;
-  overflow:hidden;
-}
-
-.footer-logo-image{
-  width:100%;
-  height:100%;
-  object-fit:cover;
-  border-radius:9px;
-}
-  .header-logo-img{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  border-radius:11px;
+  .logo-name{display:none} /* very small: just show logo icon */
+  .header-inner{padding:0 12px}
+  .hero-h1{letter-spacing:-1.5px}
 }
 </style>
 </head>
@@ -723,21 +754,13 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 <!-- SPLASH -->
 <div id="splash">
   <div class="splash-logo">
-    <img
-      src="AF LOGO 3.png"
-      alt="AcademeForge Logo"
-      class="splash-logo-img"
-    >
+    <img src="AF LOGO 3.png" alt="AcademeForge Logo" class="splash-logo-img">
   </div>
-
   <div class="splash-name">AcademeForge</div>
-
-  <div class="splash-bar">
-    <div class="splash-bar-fill"></div>
-  </div>
+  <div class="splash-bar"><div class="splash-bar-fill"></div></div>
 </div>
 
-<!-- BG -->
+<!-- BG DECORATIONS -->
 <div class="bg-orb bg-orb-1"></div>
 <div class="bg-orb bg-orb-2"></div>
 <div class="bg-orb bg-orb-3"></div>
@@ -756,56 +779,68 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
   </div>
 </div>
 
-<!-- HEADER -->
-<header id="header">
-  <div class="logo-wrap" onclick="showPage('home')">
-  <div class="logo-img">
-    <img
-      src="AF LOGO 3.png"
-      alt="AcademeForge Logo"
-      class="header-logo-img"
-    >
-  </div>
+<!-- MOBILE MENU BACKDROP -->
+<div id="mobile-backdrop"></div>
 
-  <div class="logo-name">AcademeForge</div>
-</div>
-    <nav>
+<!-- ════════════════════════════════════════
+     HEADER — correct 3-column structure
+     All elements are inside .header-inner
+════════════════════════════════════════ -->
+<header id="header">
+  <div class="header-inner">
+
+    <!-- Col 1: Logo -->
+    <div class="logo-wrap" onclick="showPage('home')" role="button" tabindex="0" aria-label="Go to home">
+      <div class="logo-img">
+        <img src="AF LOGO 3.png" alt="AcademeForge Logo" class="header-logo-img">
+      </div>
+      <div class="logo-name">AcademeForge</div>
+    </div>
+
+    <!-- Col 2: Nav (absolutely centered) -->
+    <nav aria-label="Main navigation">
       <a onclick="showPage('home')" id="nav-home" class="active">Home</a>
       <a onclick="showPage('features')" id="nav-features">Features</a>
       <a onclick="showPage('about')" id="nav-about">About Us</a>
       <a onclick="showPage('builder')" id="nav-builder">Build APK</a>
     </nav>
-    <div class="header-right">
-      <button class="back-nav-btn" id="back-nav-btn" onclick="showPage('home')">
-        <i class="fa-solid fa-arrow-left"></i>Back
+
+    <!-- Col 3: Controls -->
+    <div class="header-controls">
+      <button class="back-nav-btn" id="back-nav-btn" onclick="showPage('home')" aria-label="Back to home">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+        <span>Back</span>
       </button>
       <button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">
-        <div class="theme-toggle-thumb"><i class="fa-solid fa-moon" id="theme-icon"></i></div>
+        <div class="theme-toggle-thumb"><i class="fa-solid fa-moon" id="theme-icon" aria-hidden="true"></i></div>
+      </button>
+      <button id="menu-toggle" aria-label="Toggle menu" aria-expanded="false">
+        <span></span><span></span><span></span>
       </button>
     </div>
-    <button id="menu-toggle" aria-label="Toggle menu">
-      <span></span><span></span><span></span>
-    </button>
-  </div>
+
+  </div><!-- /.header-inner -->
 </header>
 
-<!-- MOBILE MENU -->
-<div id="mobile-menu">
-  <a onclick="showPage('home');closeMobileMenu()"><i class="fa-solid fa-house"></i>Home</a>
-  <a onclick="showPage('features');closeMobileMenu()"><i class="fa-solid fa-layer-group"></i>Features</a>
-  <a onclick="showPage('about');closeMobileMenu()"><i class="fa-solid fa-users"></i>About Us</a>
-  <a onclick="showPage('builder');closeMobileMenu()"><i class="fa-solid fa-hammer"></i>Build APK</a>
+<!-- MOBILE MENU (right-side drawer) -->
+<div id="mobile-menu" role="navigation" aria-label="Mobile navigation">
+  <a onclick="showPage('home');closeMobileMenu()"><i class="fa-solid fa-house" aria-hidden="true"></i>Home</a>
+  <a onclick="showPage('features');closeMobileMenu()"><i class="fa-solid fa-layer-group" aria-hidden="true"></i>Features</a>
+  <a onclick="showPage('about');closeMobileMenu()"><i class="fa-solid fa-users" aria-hidden="true"></i>About Us</a>
+  <a onclick="showPage('builder');closeMobileMenu()"><i class="fa-solid fa-hammer" aria-hidden="true"></i>Build APK</a>
 </div>
 
-<!-- ═══ HOME PAGE ═══ -->
+<!-- ═══════════════════ HOME PAGE ═══════════════════ -->
 <div class="page active" id="page-home">
   <section id="hero">
-    <div class="hero-floaters">
-      <div class="floater"><i class="fa-brands fa-android" style="color:var(--green)"></i>Android 5.0+</div>
-      <div class="floater"><i class="fa-solid fa-bolt" style="color:var(--yellow)"></i>Fast Build</div>
-      <div class="floater"><i class="fa-solid fa-shield-halved" style="color:var(--accent)"></i>Secure</div>
-      <div class="floater"><i class="fa-solid fa-cloud" style="color:var(--accent3)"></i>Cloud Build</div>
+    <!-- Floaters: initial positions set by JS for draggability -->
+    <div class="hero-floaters" id="hero-floaters">
+      <div class="floater" id="floater-0" data-fx="6" data-fy="12"><i class="fa-brands fa-android" style="color:var(--green)" aria-hidden="true"></i>Android 5.0+</div>
+      <div class="floater" id="floater-1" data-fx="75" data-fy="22"><i class="fa-solid fa-bolt" style="color:var(--yellow)" aria-hidden="true"></i>Fast Build</div>
+      <div class="floater" id="floater-2" data-fx="9" data-fy="72"><i class="fa-solid fa-shield-halved" style="color:var(--accent)" aria-hidden="true"></i>Secure</div>
+      <div class="floater" id="floater-3" data-fx="72" data-fy="65"><i class="fa-solid fa-cloud" style="color:var(--accent3)" aria-hidden="true"></i>Cloud Build</div>
     </div>
+
     <div class="section-wrap" style="text-align:center">
       <div class="hero-badge">
         <span class="dot"></span>
@@ -814,8 +849,8 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
       <h1 class="hero-h1">Convert Any Website Into a<br><span class="grad">Native Android App</span></h1>
       <p class="hero-sub">Build production-ready Android APKs with custom branding, icons, data persistence, WebView optimization, and enterprise-grade performance.</p>
       <div class="hero-actions">
-        <button class="btn-hero primary" onclick="showPage('builder')"><i class="fa-solid fa-rocket"></i>Build APK Free</button>
-        <button class="btn-hero secondary" onclick="showPage('features')"><i class="fa-solid fa-play"></i>View Features</button>
+        <button class="btn-hero primary" onclick="showPage('builder')"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Build APK Free</button>
+        <button class="btn-hero secondary" onclick="showPage('features')"><i class="fa-solid fa-play" aria-hidden="true"></i>View Features</button>
       </div>
       <div class="hero-stats">
         <div class="hero-stat"><div class="hero-stat-val">5.0+</div><div class="hero-stat-label">Android Version</div></div>
@@ -831,21 +866,17 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
       <div class="footer-top">
         <div>
           <div class="footer-logo">
-<div class="footer-logo-img">
-  <img
-    src="AF LOGO 3.png"
-    alt="AcademeForge Logo"
-    class="footer-logo-image"
-  >
-</div>
+            <div class="footer-logo-img">
+              <img src="AF LOGO 3.png" alt="AcademeForge Logo" class="footer-logo-image">
+            </div>
             <span class="footer-logo-name">AcademeForge</span>
           </div>
           <p class="footer-desc">A modern educational technology platform built to make digital learning tools accessible to everyone — everywhere.</p>
           <div class="footer-socials">
-            <a href="#" class="footer-social"><i class="fa-brands fa-twitter"></i></a>
-            <a href="#" class="footer-social"><i class="fa-brands fa-github"></i></a>
-            <a href="#" class="footer-social"><i class="fa-brands fa-linkedin-in"></i></a>
-            <a href="#" class="footer-social"><i class="fa-brands fa-instagram"></i></a>
+            <a href="#" class="footer-social" aria-label="Twitter"><i class="fa-brands fa-twitter" aria-hidden="true"></i></a>
+            <a href="#" class="footer-social" aria-label="GitHub"><i class="fa-brands fa-github" aria-hidden="true"></i></a>
+            <a href="#" class="footer-social" aria-label="LinkedIn"><i class="fa-brands fa-linkedin-in" aria-hidden="true"></i></a>
+            <a href="#" class="footer-social" aria-label="Instagram"><i class="fa-brands fa-instagram" aria-hidden="true"></i></a>
           </div>
         </div>
         <div>
@@ -877,57 +908,57 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
         </div>
       </div>
       <div class="footer-bottom">
-        <div class="footer-copy">&copy; 2026 <a href="https://academeforge.in" target="_blank">AcademeForge</a>. All rights reserved. Founder: <a href="#">Devraj Kumar</a>.</div>
-        <div class="footer-powered"><i class="fa-solid fa-bolt"></i>Powered by AmethystLab Build Infrastructure</div>
+        <div class="footer-copy">&copy; 2026 <a href="https://academeforge.in" target="_blank" rel="noopener noreferrer">AcademeForge</a>. All rights reserved. Founder: <a href="#">Devraj Kumar</a>.</div>
+        <div class="footer-powered"><i class="fa-solid fa-bolt" aria-hidden="true"></i>Powered by AmethystLab Build Infrastructure</div>
       </div>
     </div>
   </footer>
-</div>
+</div><!-- /#page-home -->
 
-<!-- ═══ BUILDER PAGE ═══ -->
+<!-- ═══════════════════ BUILDER PAGE ═══════════════════ -->
 <div class="page" id="page-builder">
   <div class="builder-wrap" style="margin-top:40px">
 
-    <!-- FORM -->
+    <!-- FORM CARD -->
     <div class="builder-card" id="form-card">
       <div class="card-header">
-        <div class="card-header-icon"><i class="fa-solid fa-hammer"></i></div>
+        <div class="card-header-icon"><i class="fa-solid fa-hammer" aria-hidden="true"></i></div>
         <div><h2>APK Builder</h2><p>Configure your Android application</p></div>
       </div>
       <div class="card-body">
-        <form id="apkForm">
+        <form id="apkForm" novalidate>
           <div class="form-section">
-            <div class="form-section-title"><i class="fa-solid fa-globe" style="color:var(--accent);margin-right:5px"></i>Website Configuration</div>
+            <div class="form-section-title"><i class="fa-solid fa-globe" style="color:var(--accent);margin-right:5px" aria-hidden="true"></i>Website Configuration</div>
             <div class="input-group">
-              <label for="websiteUrl">Website URL <span class="req">*</span></label>
+              <label for="websiteUrl">Website URL <span class="req" aria-hidden="true">*</span></label>
               <div class="input-wrap">
-                <input type="url" id="websiteUrl" placeholder="https://example.com" required>
-                <i class="fa-solid fa-link input-icon"></i>
+                <input type="url" id="websiteUrl" placeholder="https://example.com" required autocomplete="url">
+                <i class="fa-solid fa-link input-icon" aria-hidden="true"></i>
               </div>
               <small class="input-help">Full URL of the website to convert into an app</small>
             </div>
           </div>
           <div class="form-section">
-            <div class="form-section-title"><i class="fa-solid fa-palette" style="color:var(--accent2);margin-right:5px"></i>App Branding</div>
+            <div class="form-section-title"><i class="fa-solid fa-palette" style="color:var(--accent2);margin-right:5px" aria-hidden="true"></i>App Branding</div>
             <div class="input-group">
-              <label for="appName">App Name <span class="req">*</span></label>
+              <label for="appName">App Name <span class="req" aria-hidden="true">*</span></label>
               <div class="input-wrap">
-                <input type="text" id="appName" placeholder="My Awesome App" maxlength="30" required>
-                <i class="fa-solid fa-pen input-icon"></i>
+                <input type="text" id="appName" placeholder="My Awesome App" maxlength="30" required autocomplete="off">
+                <i class="fa-solid fa-pen input-icon" aria-hidden="true"></i>
               </div>
               <small class="input-help">Displayed on device. Max 30 characters.</small>
             </div>
             <div class="input-group">
-              <label>App Icon <span class="req">*</span></label>
+              <label>App Icon <span class="req" aria-hidden="true">*</span></label>
               <div class="file-drop" id="fileDrop">
-                <input type="file" id="icon" accept="image/*" required>
+                <input type="file" id="icon" accept="image/*" required aria-label="Upload app icon">
                 <div id="file-placeholder">
-                  <div class="file-drop-icon"><i class="fa-solid fa-image"></i></div>
+                  <div class="file-drop-icon"><i class="fa-solid fa-image" aria-hidden="true"></i></div>
                   <div class="file-drop-text">Drop icon here or click to browse</div>
                   <div class="file-drop-sub">PNG/JPG · 512×512px recommended · Max 5MB</div>
                 </div>
                 <div class="file-preview" id="file-preview">
-                  <img id="iconPreview" src="" alt="">
+                  <img id="iconPreview" src="" alt="Icon preview">
                   <div class="file-preview-info">
                     <div class="file-preview-name" id="fileName">—</div>
                     <div class="file-preview-size" id="fileSize">—</div>
@@ -938,44 +969,44 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
             </div>
           </div>
           <div class="form-section">
-            <div class="form-section-title"><i class="fa-solid fa-gear" style="color:var(--accent3);margin-right:5px"></i>App Configuration</div>
+            <div class="form-section-title"><i class="fa-solid fa-gear" style="color:var(--accent3);margin-right:5px" aria-hidden="true"></i>App Configuration</div>
             <div class="input-group">
-              <label for="packageName">Package Name <span class="req">*</span></label>
+              <label for="packageName">Package Name <span class="req" aria-hidden="true">*</span></label>
               <div class="input-wrap">
-                <input type="text" id="packageName" placeholder="com.example.myapp" required>
-                <i class="fa-solid fa-code input-icon"></i>
+                <input type="text" id="packageName" placeholder="com.example.myapp" required autocomplete="off">
+                <i class="fa-solid fa-code input-icon" aria-hidden="true"></i>
               </div>
               <small class="input-help">Unique ID, e.g. com.yourcompany.appname</small>
             </div>
             <div class="input-row">
               <div class="input-group">
-                <label for="versionName">Version Name <span class="req">*</span></label>
+                <label for="versionName">Version Name <span class="req" aria-hidden="true">*</span></label>
                 <div class="input-wrap">
-                  <input type="text" id="versionName" placeholder="1.0.0" value="1.0.0" required>
-                  <i class="fa-solid fa-tag input-icon"></i>
+                  <input type="text" id="versionName" placeholder="1.0.0" value="1.0.0" required autocomplete="off">
+                  <i class="fa-solid fa-tag input-icon" aria-hidden="true"></i>
                 </div>
               </div>
               <div class="input-group">
-                <label for="versionCode">Version Code <span class="req">*</span></label>
+                <label for="versionCode">Version Code <span class="req" aria-hidden="true">*</span></label>
                 <div class="input-wrap">
-                  <input type="number" id="versionCode" placeholder="1" min="1" value="1" required>
-                  <i class="fa-solid fa-hashtag input-icon"></i>
+                  <input type="number" id="versionCode" placeholder="1" min="1" value="1" required autocomplete="off">
+                  <i class="fa-solid fa-hashtag input-icon" aria-hidden="true"></i>
                 </div>
               </div>
             </div>
           </div>
           <button type="submit" class="btn-build" id="buildButton">
-            <i class="fa-solid fa-rocket"></i>
+            <i class="fa-solid fa-rocket" aria-hidden="true"></i>
             <span>Build APK</span>
           </button>
         </form>
       </div>
     </div>
 
-    <!-- PROGRESS -->
-    <div class="progress-card" id="build-progress">
+    <!-- PROGRESS CARD -->
+    <div class="progress-card" id="build-progress" role="status" aria-live="polite">
       <div class="progress-spinner-wrap">
-        <svg width="90" height="90" viewBox="0 0 90 90">
+        <svg width="90" height="90" viewBox="0 0 90 90" aria-hidden="true">
           <circle cx="45" cy="45" r="38" fill="none" stroke="var(--bg-elevated)" stroke-width="4"/>
           <circle id="progress-ring" cx="45" cy="45" r="38" fill="none" stroke="url(#ring-grad)" stroke-width="4"
             stroke-linecap="round" stroke-dasharray="238.76" stroke-dashoffset="238.76"
@@ -992,47 +1023,44 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
       </div>
       <div class="progress-status-text" id="progress-stage-name">Initializing...</div>
       <div class="progress-sub" id="progress-detail">Starting build pipeline</div>
-
-      <!-- Time Remaining Banner -->
       <div class="time-banner" id="time-banner">
-        <div class="time-banner-icon"><i class="fa-solid fa-clock"></i></div>
+        <div class="time-banner-icon"><i class="fa-solid fa-clock" aria-hidden="true"></i></div>
         <div class="time-banner-content">
           <div class="time-banner-title" id="time-banner-title">Estimated Time</div>
           <div class="time-banner-detail" id="time-banner-detail">Calculating...</div>
         </div>
       </div>
-
       <div class="track"><div class="track-fill" id="track-fill"></div></div>
-      <div class="stages" id="stages-list"></div>
+      <div class="stages" id="stages-list" role="list"></div>
     </div>
 
-    <!-- SUCCESS -->
+    <!-- SUCCESS CARD -->
     <div class="success-card" id="build-success">
       <div class="success-card-top">
-        <div class="success-anim"><i class="fa-solid fa-check"></i></div>
+        <div class="success-anim"><i class="fa-solid fa-check" aria-hidden="true"></i></div>
         <div class="success-title">APK Ready to Download!</div>
         <div class="success-sub" id="success-sub">Your Android app has been built successfully.</div>
         <div class="success-badges">
-          <span class="badge green"><i class="fa-solid fa-circle-check"></i>Build Success</span>
-          <span class="badge blue"><i class="fa-brands fa-android"></i>Android 5.0+</span>
-          <span class="badge purple"><i class="fa-solid fa-shield-halved"></i>Signed</span>
+          <span class="badge green"><i class="fa-solid fa-circle-check" aria-hidden="true"></i>Build Success</span>
+          <span class="badge blue"><i class="fa-brands fa-android" aria-hidden="true"></i>Android 5.0+</span>
+          <span class="badge purple"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Signed</span>
         </div>
       </div>
       <div class="success-card-body">
         <div class="url-row">
           <span class="url-row-label">URL</span>
           <span class="url-row-val" id="dl-url-display">—</span>
-          <button class="url-copy" id="copy-url" title="Copy URL"><i class="fa-solid fa-copy"></i></button>
+          <button class="url-copy" id="copy-url" title="Copy URL" aria-label="Copy download URL"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>
         </div>
         <div class="dl-actions">
           <a href="#" id="downloadLink" class="btn-dl primary" target="_blank" rel="noopener noreferrer">
-            <i class="fa-solid fa-download"></i><span>Download APK</span>
+            <i class="fa-solid fa-download" aria-hidden="true"></i><span>Download APK</span>
           </a>
           <button class="btn-dl secondary" id="install-btn">
-            <i class="fa-solid fa-mobile-screen-button"></i><span>Install Now</span>
+            <i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i><span>Install Now</span>
           </button>
         </div>
-        <button class="btn-new" id="build-new-btn"><i class="fa-solid fa-plus"></i>Build New APK</button>
+        <button class="btn-new" id="build-new-btn"><i class="fa-solid fa-plus" aria-hidden="true"></i>Build New APK</button>
         <div class="install-steps">
           <div class="install-step"><div class="step-num">1</div><div class="step-text"><strong>Download the APK</strong> to your Android device.</div></div>
           <div class="install-step"><div class="step-num">2</div><div class="step-text">Go to <strong>Settings → Security</strong> and enable <strong>Unknown Sources</strong>.</div></div>
@@ -1045,7 +1073,7 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
     <!-- QUEUE STATUS -->
     <div class="queue-card">
       <div class="queue-header">
-        <div class="card-header-icon" style="width:30px;height:30px;border-radius:9px;font-size:0.78rem"><i class="fa-solid fa-server"></i></div>
+        <div class="card-header-icon" style="width:30px;height:30px;border-radius:9px;font-size:0.78rem"><i class="fa-solid fa-server" aria-hidden="true"></i></div>
         <span style="font-size:0.85rem;font-weight:600;color:var(--text-secondary)">Build Queue</span>
         <div class="queue-live"><span class="queue-live-dot"></span>LIVE</div>
       </div>
@@ -1059,9 +1087,9 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
     </div>
 
   </div>
-</div>
+</div><!-- /#page-builder -->
 
-<!-- ═══ FEATURES PAGE ═══ -->
+<!-- ═══════════════════ FEATURES PAGE ═══════════════════ -->
 <div class="page" id="page-features">
   <div id="features-page">
     <div class="features-inner">
@@ -1071,55 +1099,23 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
         <p class="section-sub">From icon to APK in under 5 minutes. No Android Studio required.</p>
       </div>
       <div class="features-grid">
-        <div class="feat-card">
-          <div class="feat-icon purple"><i class="fa-brands fa-android"></i></div>
-          <div class="feat-title">Native Android APK</div>
-          <div class="feat-desc">Generates a real, installable APK targeting Android 5.0+ with full hardware acceleration.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon cyan"><i class="fa-solid fa-palette"></i></div>
-          <div class="feat-title">Custom Branding</div>
-          <div class="feat-desc">Set your own app name, package identifier, and upload a custom icon for every build.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon green"><i class="fa-solid fa-database"></i></div>
-          <div class="feat-title">Data Persistence</div>
-          <div class="feat-desc">LocalStorage, SessionStorage, Cookies and login sessions all preserved natively.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon yellow"><i class="fa-solid fa-wifi"></i></div>
-          <div class="feat-title">Offline Support</div>
-          <div class="feat-desc">Cache-first architecture with automatic backup and restore on app relaunch.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon red"><i class="fa-solid fa-bolt"></i></div>
-          <div class="feat-title">Hardware Acceleration</div>
-          <div class="feat-desc">GPU-accelerated WebView rendering delivers buttery 60fps scrolling and animations.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon violet"><i class="fa-solid fa-mobile-screen"></i></div>
-          <div class="feat-title">Modern Android Support</div>
-          <div class="feat-desc">Built for Android API 21+ with edge-to-edge display and gesture navigation support.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon purple"><i class="fa-solid fa-gauge-high"></i></div>
-          <div class="feat-title">Fast Build Pipeline</div>
-          <div class="feat-desc">Cloud-compiled in 3–6 minutes. AmethystLab servers handle the heavy lifting.</div>
-        </div>
-        <div class="feat-card">
-          <div class="feat-icon cyan"><i class="fa-solid fa-shield-halved"></i></div>
-          <div class="feat-title">Enterprise Security</div>
-          <div class="feat-desc">All processing is server-side. No permanent data storage. Builds deleted after 48h.</div>
-        </div>
+        <div class="feat-card"><div class="feat-icon purple"><i class="fa-brands fa-android" aria-hidden="true"></i></div><div class="feat-title">Native Android APK</div><div class="feat-desc">Generates a real, installable APK targeting Android 5.0+ with full hardware acceleration.</div></div>
+        <div class="feat-card"><div class="feat-icon cyan"><i class="fa-solid fa-palette" aria-hidden="true"></i></div><div class="feat-title">Custom Branding</div><div class="feat-desc">Set your own app name, package identifier, and upload a custom icon for every build.</div></div>
+        <div class="feat-card"><div class="feat-icon green"><i class="fa-solid fa-database" aria-hidden="true"></i></div><div class="feat-title">Data Persistence</div><div class="feat-desc">LocalStorage, SessionStorage, Cookies and login sessions all preserved natively.</div></div>
+        <div class="feat-card"><div class="feat-icon yellow"><i class="fa-solid fa-wifi" aria-hidden="true"></i></div><div class="feat-title">Offline Support</div><div class="feat-desc">Cache-first architecture with automatic backup and restore on app relaunch.</div></div>
+        <div class="feat-card"><div class="feat-icon red"><i class="fa-solid fa-bolt" aria-hidden="true"></i></div><div class="feat-title">Hardware Acceleration</div><div class="feat-desc">GPU-accelerated WebView rendering delivers buttery 60fps scrolling and animations.</div></div>
+        <div class="feat-card"><div class="feat-icon violet"><i class="fa-solid fa-mobile-screen" aria-hidden="true"></i></div><div class="feat-title">Modern Android Support</div><div class="feat-desc">Built for Android API 21+ with edge-to-edge display and gesture navigation support.</div></div>
+        <div class="feat-card"><div class="feat-icon purple"><i class="fa-solid fa-gauge-high" aria-hidden="true"></i></div><div class="feat-title">Fast Build Pipeline</div><div class="feat-desc">Cloud-compiled in 3–6 minutes. AmethystLab servers handle the heavy lifting.</div></div>
+        <div class="feat-card"><div class="feat-icon cyan"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i></div><div class="feat-title">Enterprise Security</div><div class="feat-desc">All processing is server-side. No permanent data storage. Builds deleted after 48h.</div></div>
       </div>
       <div style="text-align:center;margin-top:52px">
-        <button class="btn-hero primary" onclick="showPage('builder')"><i class="fa-solid fa-rocket"></i>Build Your APK Now</button>
+        <button class="btn-hero primary" onclick="showPage('builder')"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Build Your APK Now</button>
       </div>
     </div>
   </div>
-</div>
+</div><!-- /#page-features -->
 
-<!-- ═══ ABOUT PAGE ═══ -->
+<!-- ═══════════════════ ABOUT PAGE ═══════════════════ -->
 <div class="page" id="page-about">
   <div id="about-page">
     <div class="about-inner">
@@ -1134,28 +1130,28 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
           <p class="about-p">AcademeForge is a forward-thinking EdTech platform built to remove barriers between learning and technology. We believe powerful digital tools should be accessible to educators, students, and developers everywhere.</p>
           <p class="about-p">The APK Builder is one piece of a larger ecosystem — enabling institutions, creators, and independent developers to wrap their web-based learning tools into mobile-first Android experiences without any coding knowledge.</p>
           <div class="about-pills">
-            <div class="about-pill"><i class="fa-solid fa-graduation-cap"></i>EdTech Platform</div>
-            <div class="about-pill"><i class="fa-solid fa-rocket"></i>Innovation Driven</div>
-            <div class="about-pill"><i class="fa-solid fa-earth-asia"></i>Future Focused</div>
-            <div class="about-pill"><i class="fa-solid fa-code-branch"></i>Open Ecosystem</div>
+            <div class="about-pill"><i class="fa-solid fa-graduation-cap" aria-hidden="true"></i>EdTech Platform</div>
+            <div class="about-pill"><i class="fa-solid fa-rocket" aria-hidden="true"></i>Innovation Driven</div>
+            <div class="about-pill"><i class="fa-solid fa-earth-asia" aria-hidden="true"></i>Future Focused</div>
+            <div class="about-pill"><i class="fa-solid fa-code-branch" aria-hidden="true"></i>Open Ecosystem</div>
           </div>
         </div>
         <div>
           <div class="about-card">
             <div class="about-card-item">
-              <div class="about-item-icon"><i class="fa-solid fa-user"></i></div>
+              <div class="about-item-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div>
               <div><div class="about-item-label">Founder</div><div class="about-item-val">Devraj Kumar</div></div>
             </div>
             <div class="about-card-item">
-              <div class="about-item-icon"><i class="fa-solid fa-server"></i></div>
+              <div class="about-item-icon"><i class="fa-solid fa-server" aria-hidden="true"></i></div>
               <div><div class="about-item-label">Build Infrastructure</div><div class="about-item-val">AmethystLab</div></div>
             </div>
             <div class="about-card-item">
-              <div class="about-item-icon"><i class="fa-solid fa-globe"></i></div>
-              <div><div class="about-item-label">Website</div><div class="about-item-val"><a href="https://academeforge.in" target="_blank" style="color:var(--accent);text-decoration:none">academeforge.in</a></div></div>
+              <div class="about-item-icon"><i class="fa-solid fa-globe" aria-hidden="true"></i></div>
+              <div><div class="about-item-label">Website</div><div class="about-item-val"><a href="https://academeforge.in" target="_blank" rel="noopener noreferrer" style="color:var(--accent);text-decoration:none">academeforge.in</a></div></div>
             </div>
             <div class="about-card-item">
-              <div class="about-item-icon"><i class="fa-solid fa-lightbulb"></i></div>
+              <div class="about-item-icon"><i class="fa-solid fa-lightbulb" aria-hidden="true"></i></div>
               <div><div class="about-item-label">Mission</div><div class="about-item-val">Learning Beyond the Classroom</div></div>
             </div>
           </div>
@@ -1176,93 +1172,57 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
       </div>
     </div>
   </div>
-</div>
+</div><!-- /#page-about -->
 
 <!-- SCROLL TOP -->
-<button id="scroll-top" title="Back to top"><i class="fa-solid fa-chevron-up"></i></button>
+<button id="scroll-top" title="Back to top" aria-label="Scroll to top"><i class="fa-solid fa-chevron-up" aria-hidden="true"></i></button>
 
 <script>
-/**
- * AcademeForge APK Builder — Production-grade JavaScript
- */
 'use strict';
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    CONSTANTS
-───────────────────────────────────────────── */
-const API_BASE        = 'https://webappcreator.amethystlab.org';
-const CACHE_KEY_BUILD = 'af_latest_build_v3';
-const CACHE_KEY_FORM  = 'af_form_cache_v3';
-const CACHE_TTL       = 48 * 60 * 60 * 1000; // 48 hours
+═══════════════════════════════════════════════════ */
+const API_BASE             = 'https://webappcreator.amethystlab.org';
+const CACHE_KEY_BUILD      = 'af_latest_build_v3';
+const CACHE_KEY_FORM       = 'af_form_cache_v3';
+const CACHE_TTL            = 48 * 60 * 60 * 1000;
+const POLL_INTERVAL_MS     = 30_000;
+const POLL_TIMEOUT_MS      = 12 * 60 * 1000;
+const MAX_CONSECUTIVE_ERRS = 5;
+const MAX_RATE_LIMIT_HITS  = 3;
+const SUBMIT_DEBOUNCE_MS   = 800;
+const QUEUE_POLL_MS        = 60_000;
 
-const POLL_INTERVAL_MS      = 30_000;  // 30 s normal poll
-const POLL_TIMEOUT_MS       = 12 * 60 * 1000; // 12 min hard timeout
-const MAX_CONSECUTIVE_ERRS  = 5;
-const MAX_RATE_LIMIT_HITS   = 3;
-const SUBMIT_DEBOUNCE_MS    = 800;
-const QUEUE_POLL_MS         = 60_000;
-
-/* ─────────────────────────────────────────────
-   SINGLETON BUILD STATE
-   All mutable state lives here — no scattered vars.
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   BUILD STATE SINGLETON
+═══════════════════════════════════════════════════ */
 const Build = {
-  // intervals / timeouts
-  statusInterval:  null,
-  statusTimeout:   null,
-  queueInterval:   null,
-
-  // request guard
-  fetchInFlight:   false,
-  abortController: null,
-
-  // counters (survive across poll ticks)
-  consecutiveErrors: 0,
-  rateLimitHits:     0,
-  pollCount:         0,
-
-  // current projectId being polled
-  projectId: null,
-
-  // progress simulation
-  stageIndex:   0,
-  startTime:    null,
-
-  // submit guard
-  submitLocked: false,
-  submitTimer:  null,
+  statusInterval: null, statusTimeout: null, queueInterval: null,
+  fetchInFlight: false, abortController: null,
+  consecutiveErrors: 0, rateLimitHits: 0, pollCount: 0,
+  projectId: null, stageIndex: 0, startTime: null,
+  submitLocked: false, submitTimer: null,
 
   reset() {
-    this.clearTimers();
-    this.abort();
-    this.fetchInFlight   = false;
-    this.consecutiveErrors = 0;
-    this.rateLimitHits   = 0;
-    this.pollCount       = 0;
-    this.projectId       = null;
-    this.stageIndex      = 0;
-    this.startTime       = null;
+    this.clearTimers(); this.abort();
+    this.fetchInFlight = false; this.consecutiveErrors = 0;
+    this.rateLimitHits = 0; this.pollCount = 0;
+    this.projectId = null; this.stageIndex = 0; this.startTime = null;
   },
-
   clearTimers() {
     if (this.statusInterval)  { clearInterval(this.statusInterval);  this.statusInterval  = null; }
     if (this.statusTimeout)   { clearTimeout(this.statusTimeout);    this.statusTimeout   = null; }
     if (this.queueInterval)   { clearInterval(this.queueInterval);   this.queueInterval   = null; }
   },
-
   abort() {
-    if (this.abortController) {
-      try { this.abortController.abort(); } catch (_) {}
-      this.abortController = null;
-    }
+    if (this.abortController) { try { this.abortController.abort(); } catch (_) {} this.abortController = null; }
   },
-
   lockSubmit() {
     this.submitLocked = true;
     const btn = document.getElementById('buildButton');
     if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
   },
-
   unlockSubmit() {
     this.submitLocked = false;
     const btn = document.getElementById('buildButton');
@@ -1270,44 +1230,33 @@ const Build = {
   },
 };
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    SPLASH
-───────────────────────────────────────────── */
-setTimeout(() => {
-  const splash = document.getElementById('splash');
-  if (splash) splash.classList.add('out');
-}, 1200);
-setTimeout(() => {
-  const splash = document.getElementById('splash');
-  if (splash) splash.style.display = 'none';
-}, 1750);
+═══════════════════════════════════════════════════ */
+setTimeout(() => document.getElementById('splash')?.classList.add('out'), 1200);
+setTimeout(() => { const s = document.getElementById('splash'); if (s) s.style.display = 'none'; }, 1750);
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    PAGE ROUTING
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  const page = document.getElementById('page-' + name);
-  if (page) page.classList.add('active');
+  document.getElementById('page-' + name)?.classList.add('active');
 
   document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-  const navEl = document.getElementById('nav-' + name);
-  if (navEl) navEl.classList.add('active');
+  document.getElementById('nav-' + name)?.classList.add('active');
 
   const backBtn = document.getElementById('back-nav-btn');
   if (backBtn) backBtn.classList.toggle('show', name !== 'home');
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-
-  // Start queue polling when builder page becomes active
   if (name === 'builder') startQueuePolling();
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    THEME
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 let isDark = true;
-
 function applyTheme(dark) {
   isDark = dark;
   document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -1315,151 +1264,105 @@ function applyTheme(dark) {
   if (icon) icon.className = dark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
   try { localStorage.setItem('af_theme', dark ? 'dark' : 'light'); } catch (_) {}
 }
-
-try {
-  const saved = localStorage.getItem('af_theme');
-  if (saved) applyTheme(saved === 'dark');
-} catch (_) {}
-
+try { const saved = localStorage.getItem('af_theme'); if (saved) applyTheme(saved === 'dark'); } catch (_) {}
 document.getElementById('themeToggle')?.addEventListener('click', () => applyTheme(!isDark));
 
-/* ─────────────────────────────────────────────
-   HEADER SCROLL / SCROLL-TOP
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   HEADER SCROLL
+═══════════════════════════════════════════════════ */
 window.addEventListener('scroll', () => {
   document.getElementById('header')?.classList.toggle('scrolled', window.scrollY > 20);
   document.getElementById('scroll-top')?.classList.toggle('show', window.scrollY > 400);
 }, { passive: true });
+document.getElementById('scroll-top')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 
-document.getElementById('scroll-top')?.addEventListener('click', () =>
-  window.scrollTo({ top: 0, behavior: 'smooth' })
-);
-
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    MOBILE MENU
-───────────────────────────────────────────── */
-const menuToggle = document.getElementById('menu-toggle');
-const mobileMenu = document.getElementById('mobile-menu');
+═══════════════════════════════════════════════════ */
+const menuToggle  = document.getElementById('menu-toggle');
+const mobileMenu  = document.getElementById('mobile-menu');
+const mobileBack  = document.getElementById('mobile-backdrop');
 
 menuToggle?.addEventListener('click', () => {
-  menuToggle.classList.toggle('open');
-  mobileMenu?.classList.toggle('open');
+  const isOpen = mobileMenu.classList.toggle('open');
+  mobileBack.classList.toggle('open', isOpen);
+  menuToggle.classList.toggle('open', isOpen);
+  menuToggle.setAttribute('aria-expanded', String(isOpen));
 });
+mobileBack?.addEventListener('click', closeMobileMenu);
 
 function closeMobileMenu() {
-  menuToggle?.classList.remove('open');
   mobileMenu?.classList.remove('open');
+  mobileBack?.classList.remove('open');
+  menuToggle?.classList.remove('open');
+  menuToggle?.setAttribute('aria-expanded', 'false');
 }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeMobileMenu(); hideModal(); } });
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    TOAST
-───────────────────────────────────────────── */
-const TOAST_ICONS = {
-  success: 'fa-circle-check',
-  error:   'fa-circle-exclamation',
-  info:    'fa-circle-info',
-};
-
+═══════════════════════════════════════════════════ */
+const TOAST_ICONS = { success:'fa-circle-check', error:'fa-circle-exclamation', info:'fa-circle-info' };
 function toast(type, title, msg = '', dur = 4000) {
   const container = document.getElementById('toast-container');
   if (!container) return;
-
-  // Deduplicate: remove identical toast already visible
-  const existing = container.querySelectorAll('.toast');
-  for (const t of existing) {
-    if (t.querySelector('.toast-title')?.textContent === title) {
-      dismissToast(t);
-    }
-  }
-
+  container.querySelectorAll('.toast').forEach(t => {
+    if (t.querySelector('.toast-title')?.textContent === title) dismissToast(t);
+  });
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  // Sanitize output — title/msg come from internal constants, but be explicit
-  const safeTitle = sanitizeText(title);
-  const safeMsg   = sanitizeText(msg);
-  t.innerHTML = `
-    <i class="fa-solid ${TOAST_ICONS[type] ?? 'fa-info'} toast-icon" aria-hidden="true"></i>
-    <div class="toast-body">
-      <div class="toast-title">${safeTitle}</div>
-      ${safeMsg ? `<div class="toast-msg">${safeMsg}</div>` : ''}
-    </div>
+  t.innerHTML = `<i class="fa-solid ${TOAST_ICONS[type] ?? 'fa-info'} toast-icon" aria-hidden="true"></i>
+    <div class="toast-body"><div class="toast-title">${sanitizeText(title)}</div>${msg ? `<div class="toast-msg">${sanitizeText(msg)}</div>` : ''}</div>
     <button class="toast-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>`;
-
   container.appendChild(t);
   t.querySelector('.toast-close').addEventListener('click', () => dismissToast(t));
   if (dur > 0) setTimeout(() => dismissToast(t), dur);
 }
-
 function dismissToast(t) {
-  if (!t || !t.parentNode) return;
+  if (!t?.parentNode) return;
   t.classList.add('exit');
   setTimeout(() => t.remove(), 300);
 }
-
-/** Minimal XSS sanitizer for text nodes */
 function sanitizeText(str) {
   if (typeof str !== 'string') return '';
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    MODAL
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function showModal({ icon, iconClass = 'info', title, msg, actions = [] }) {
   const overlay = document.getElementById('modal-overlay');
   if (!overlay) return;
-
-  const iconEl   = document.getElementById('modal-icon');
-  const titleEl  = document.getElementById('modal-title');
-  const msgEl    = document.getElementById('modal-msg');
-  const actsEl   = document.getElementById('modal-actions');
-
+  const iconEl  = document.getElementById('modal-icon');
+  const titleEl = document.getElementById('modal-title');
+  const msgEl   = document.getElementById('modal-msg');
+  const actsEl  = document.getElementById('modal-actions');
   if (iconEl)  { iconEl.className = `modal-icon ${iconClass}`; iconEl.innerHTML = icon; }
   if (titleEl) titleEl.textContent = title;
   if (msgEl)   msgEl.textContent   = msg;
-
   if (actsEl) {
     actsEl.innerHTML = '';
     actions.forEach(a => {
       const btn = document.createElement('button');
       btn.className = `modal-btn ${a.cls ?? 'secondary'}`;
-      if (a.icon) {
-        const i = document.createElement('i');
-        i.className = a.icon;
-        i.setAttribute('aria-hidden', 'true');
-        btn.appendChild(i);
-      }
+      if (a.icon) { const i = document.createElement('i'); i.className = a.icon; i.setAttribute('aria-hidden','true'); btn.appendChild(i); }
       btn.appendChild(document.createTextNode(a.label));
       btn.addEventListener('click', () => { hideModal(); a.cb?.(); });
       actsEl.appendChild(btn);
     });
   }
-
   overlay.classList.add('active');
 }
+function hideModal() { document.getElementById('modal-overlay')?.classList.remove('active'); }
+document.getElementById('modal-overlay')?.addEventListener('click', e => { if (e.target === e.currentTarget) hideModal(); });
 
-function hideModal() {
-  document.getElementById('modal-overlay')?.classList.remove('active');
-}
-
-document.getElementById('modal-overlay')?.addEventListener('click', e => {
-  if (e.target === e.currentTarget) hideModal();
-});
-
-/* ─────────────────────────────────────────────
-   CACHE
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   CACHE HELPERS
+═══════════════════════════════════════════════════ */
 function saveCache(key, val) {
-  try {
-    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: val }));
-  } catch (_) {}
+  try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: val })); } catch (_) {}
 }
-
 function loadCache(key) {
   try {
     const raw = localStorage.getItem(key);
@@ -1468,181 +1371,129 @@ function loadCache(key) {
     if (!obj || typeof obj.ts !== 'number') return null;
     if (Date.now() - obj.ts > CACHE_TTL) { localStorage.removeItem(key); return null; }
     return obj.data;
-  } catch (_) {
-    return null;
-  }
+  } catch (_) { return null; }
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    FORM CACHE
-───────────────────────────────────────────── */
-const FORM_FIELDS = ['websiteUrl', 'appName', 'packageName', 'versionName', 'versionCode'];
-
+═══════════════════════════════════════════════════ */
+const FORM_FIELDS = ['websiteUrl','appName','packageName','versionName','versionCode'];
 function saveFormCache() {
   const data = {};
-  FORM_FIELDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) data[id] = el.value;
-  });
+  FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) data[id] = el.value; });
   saveCache(CACHE_KEY_FORM, data);
 }
-
 function restoreFormCache() {
   const data = loadCache(CACHE_KEY_FORM);
   if (!data || typeof data !== 'object') return;
-  FORM_FIELDS.forEach(id => {
-    const el = document.getElementById(id);
-    if (el && typeof data[id] === 'string') el.value = data[id];
-  });
+  FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el && typeof data[id] === 'string') el.value = data[id]; });
 }
+FORM_FIELDS.forEach(id => document.getElementById(id)?.addEventListener('input', saveFormCache));
 
-// Register form cache listeners once
-FORM_FIELDS.forEach(id => {
-  document.getElementById(id)?.addEventListener('input', saveFormCache);
-});
-
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    FILE UPLOAD
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 const iconInput = document.getElementById('icon');
 const fileDrop  = document.getElementById('fileDrop');
-
 iconInput?.addEventListener('change', e => handleFile(e.target.files[0]));
-
-['dragenter', 'dragover'].forEach(ev =>
-  fileDrop?.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.add('drag-over'); })
-);
-['dragleave', 'drop'].forEach(ev =>
-  fileDrop?.addEventListener(ev, e => {
-    e.preventDefault();
-    fileDrop.classList.remove('drag-over');
-  })
-);
+['dragenter','dragover'].forEach(ev => fileDrop?.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.add('drag-over'); }));
+['dragleave','drop'].forEach(ev => fileDrop?.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.remove('drag-over'); }));
 fileDrop?.addEventListener('drop', e => handleFile(e.dataTransfer?.files[0]));
-
 function handleFile(file) {
   if (!file) return;
-  if (file.size > 5 * 1024 * 1024) { toast('error', 'File Too Large', 'Max 5 MB allowed.'); return; }
-  if (!file.type.startsWith('image/')) { toast('error', 'Invalid File', 'Please select an image.'); return; }
-
+  if (file.size > 5 * 1024 * 1024) { toast('error','File Too Large','Max 5 MB allowed.'); return; }
+  if (!file.type.startsWith('image/')) { toast('error','Invalid File','Please select an image.'); return; }
   const reader = new FileReader();
   reader.onload = ev => {
     const preview = document.getElementById('iconPreview');
     if (preview) preview.src = ev.target.result;
-    const name = document.getElementById('fileName');
-    if (name) name.textContent = sanitizeText(file.name);
-    const size = document.getElementById('fileSize');
-    if (size) size.textContent = (file.size / 1024).toFixed(1) + ' KB';
-    document.getElementById('file-placeholder')?.style.setProperty('display', 'none');
+    const nm = document.getElementById('fileName'); if (nm) nm.textContent = sanitizeText(file.name);
+    const sz = document.getElementById('fileSize');  if (sz) sz.textContent = (file.size/1024).toFixed(1)+' KB';
+    document.getElementById('file-placeholder')?.style.setProperty('display','none');
     document.getElementById('file-preview')?.classList.add('show');
-    try {
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      if (iconInput) iconInput.files = dt.files;
-    } catch (_) {}
+    try { const dt = new DataTransfer(); dt.items.add(file); if (iconInput) iconInput.files = dt.files; } catch (_) {}
   };
-  reader.onerror = () => toast('error', 'Read Error', 'Could not read the selected file.');
+  reader.onerror = () => toast('error','Read Error','Could not read the selected file.');
   reader.readAsDataURL(file);
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    INLINE VALIDATION
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function setFieldValidity(el, valid) {
   if (!el) return;
   el.classList.toggle('valid',   valid && el.value.length > 0);
   el.classList.toggle('invalid', !valid && el.value.length > 0);
 }
-
-document.getElementById('packageName')?.addEventListener('input', function () {
+document.getElementById('packageName')?.addEventListener('input', function() {
   setFieldValidity(this, /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(this.value));
 });
-
-document.getElementById('versionName')?.addEventListener('input', function () {
+document.getElementById('versionName')?.addEventListener('input', function() {
   setFieldValidity(this, /^\d+\.\d+\.\d+$/.test(this.value));
 });
-
-document.getElementById('websiteUrl')?.addEventListener('input', function () {
-  if (!this.value) { this.classList.remove('valid', 'invalid'); return; }
-  try { new URL(this.value); setFieldValidity(this, true); }
-  catch { setFieldValidity(this, false); }
+document.getElementById('websiteUrl')?.addEventListener('input', function() {
+  if (!this.value) { this.classList.remove('valid','invalid'); return; }
+  try { new URL(this.value); setFieldValidity(this, true); } catch { setFieldValidity(this, false); }
 });
-
-document.getElementById('appName')?.addEventListener('input', function () {
+document.getElementById('appName')?.addEventListener('input', function() {
   const pkg = document.getElementById('packageName');
   if (pkg && !pkg.value) {
-    const s = this.value.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '');
+    const s = this.value.toLowerCase().replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,'');
     if (s) pkg.value = `com.academeforge.${s}`;
   }
 });
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    BUILD STAGES
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 const STAGES = [
-  { id: 'init',    label: 'Initialize',       detail: 'Setting up build environment',       icon: 'fa-play'        },
-  { id: 'gen',     label: 'Generate Project',  detail: 'Creating Android project structure', icon: 'fa-folder-plus' },
-  { id: 'wv',      label: 'Create WebView',    detail: 'Configuring WebView component',      icon: 'fa-globe'       },
-  { id: 'assets',  label: 'Process Assets',    detail: 'Processing icon & resources',        icon: 'fa-image'       },
-  { id: 'compile', label: 'Compile',           detail: 'Compiling Java source code',         icon: 'fa-code'        },
-  { id: 'package', label: 'Package APK',       detail: 'Packaging into APK file',            icon: 'fa-box'         },
-  { id: 'final',   label: 'Finalize',          detail: 'Signing & optimizing APK',           icon: 'fa-certificate' },
+  { id:'init',    label:'Initialize',      detail:'Setting up build environment',       icon:'fa-play'        },
+  { id:'gen',     label:'Generate Project', detail:'Creating Android project structure', icon:'fa-folder-plus' },
+  { id:'wv',      label:'Create WebView',   detail:'Configuring WebView component',      icon:'fa-globe'       },
+  { id:'assets',  label:'Process Assets',   detail:'Processing icon & resources',        icon:'fa-image'       },
+  { id:'compile', label:'Compile',          detail:'Compiling Java source code',         icon:'fa-code'        },
+  { id:'package', label:'Package APK',      detail:'Packaging into APK file',            icon:'fa-box'         },
+  { id:'final',   label:'Finalize',         detail:'Signing & optimizing APK',           icon:'fa-certificate' },
 ];
-
 function renderStages() {
   const list = document.getElementById('stages-list');
   if (!list) return;
-  list.innerHTML = STAGES.map(s => `
-    <div class="stage" id="stage-${s.id}" role="listitem">
+  list.innerHTML = STAGES.map(s =>
+    `<div class="stage" id="stage-${s.id}" role="listitem">
       <div class="stage-dot"></div>
       <span style="flex:1">${sanitizeText(s.label)}</span>
       <i class="fa-solid ${s.icon} stage-icon" aria-hidden="true"></i>
     </div>`
   ).join('');
 }
-
 function advanceStage(idx) {
   Build.stageIndex = idx;
   STAGES.forEach((s, i) => {
-    const el = document.getElementById(`stage-${s.id}`);
-    if (!el) return;
-    el.classList.remove('active', 'done');
-    if (i < idx)      el.classList.add('done');
-    else if (i === idx) el.classList.add('active');
+    const el = document.getElementById(`stage-${s.id}`); if (!el) return;
+    el.classList.remove('active','done');
+    if (i < idx) el.classList.add('done'); else if (i === idx) el.classList.add('active');
   });
-  const pct = Math.round(((idx + 1) / STAGES.length) * 100);
+  const pct = Math.round(((idx+1)/STAGES.length)*100);
   setProgress(Math.min(pct, 97), STAGES[idx]?.label, STAGES[idx]?.detail);
   updateTimeBanner(idx);
 }
-
 function updateTimeBanner(stageIdx, overrideTitle = null, overrideDetail = null) {
   const titleEl  = document.getElementById('time-banner-title');
   const detailEl = document.getElementById('time-banner-detail');
   if (!titleEl || !detailEl) return;
-
-  if (overrideTitle)  { titleEl.textContent  = overrideTitle;  }
+  if (overrideTitle)  titleEl.textContent  = overrideTitle;
   if (overrideDetail) { detailEl.textContent = overrideDetail; return; }
-
   const elapsed = Build.startTime ? (Date.now() - Build.startTime) : 0;
-  const stageProgress = (stageIdx + 1) / STAGES.length;
+  const stageProgress = (stageIdx+1) / STAGES.length;
   const estimatedTotalMs = elapsed / Math.max(stageProgress, 0.05);
   const remainingMs = Math.max(0, estimatedTotalMs - elapsed);
   const remainMins  = Math.ceil(remainingMs / 60000);
-
   if (!overrideTitle) titleEl.textContent = STAGES[stageIdx]?.label ?? 'Building';
-
-  if (remainMins <= 0 || remainMins > 15) {
-    detailEl.textContent = 'Build time: approximately 3–6 minutes';
-  } else if (remainMins === 1) {
-    detailEl.textContent = 'Approximately 1 minute remaining';
-  } else {
-    detailEl.textContent = `Approximately ${remainMins} minutes remaining`;
-  }
+  if (remainMins <= 0 || remainMins > 15) detailEl.textContent = 'Build time: approximately 3–6 minutes';
+  else if (remainMins === 1) detailEl.textContent = 'Approximately 1 minute remaining';
+  else detailEl.textContent = `Approximately ${remainMins} minutes remaining`;
 }
-
-// RAF-batched progress setter — avoids layout thrash
-let _progressRafPending = false;
-let _progressQueue = {};
+let _progressRafPending = false, _progressQueue = {};
 function setProgress(pct, name, detail) {
   _progressQueue = { pct, name, detail };
   if (_progressRafPending) return;
@@ -1652,81 +1503,61 @@ function setProgress(pct, name, detail) {
     const { pct, name, detail } = _progressQueue;
     const ring = document.getElementById('progress-ring');
     if (ring) ring.style.strokeDashoffset = String(238.76 - (238.76 * pct / 100));
-    const pctEl = document.getElementById('progress-pct');
-    if (pctEl) pctEl.textContent = pct + '%';
-    const tf = document.getElementById('track-fill');
-    if (tf) tf.style.width = pct + '%';
+    const pctEl = document.getElementById('progress-pct'); if (pctEl) pctEl.textContent = pct + '%';
+    const tf    = document.getElementById('track-fill');    if (tf)    tf.style.width    = pct + '%';
     if (name)   { const n = document.getElementById('progress-stage-name'); if (n) n.textContent = name; }
     if (detail) { const d = document.getElementById('progress-detail');      if (d) d.textContent = detail; }
   });
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    BUILD PROGRESS SIMULATION
-   (runs client-side while waiting for server)
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 let _simInterval = null;
-
 function startBuildProgress() {
-  Build.startTime  = Date.now();
-  Build.stageIndex = 0;
+  Build.startTime = Date.now(); Build.stageIndex = 0;
   renderStages();
-
   if (_simInterval) clearInterval(_simInterval);
   advanceStage(0);
-
   let simIdx = 0;
   _simInterval = setInterval(() => {
-    if (simIdx < STAGES.length - 1) advanceStage(++simIdx);
-    else clearInterval(_simInterval);
+    if (simIdx < STAGES.length - 1) advanceStage(++simIdx); else clearInterval(_simInterval);
   }, 4000);
 }
-
 function completeBuildProgress() {
   if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
-  STAGES.forEach(s => {
-    document.getElementById(`stage-${s.id}`)?.classList.add('done');
-  });
+  STAGES.forEach(s => document.getElementById(`stage-${s.id}`)?.classList.add('done'));
   setProgress(100, 'Complete!', 'APK packaged and ready');
   updateTimeBanner(STAGES.length - 1, 'Build Complete', 'Your APK is ready to download!');
 }
-
 function stopBuildProgress() {
   if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    UI STATE MACHINE
-───────────────────────────────────────────── */
-const UIState = {
-  FORM:     'form',
-  PROGRESS: 'progress',
-  SUCCESS:  'success',
-};
+═══════════════════════════════════════════════════ */
+const UIState = { FORM:'form', PROGRESS:'progress', SUCCESS:'success' };
 let _currentUIState = UIState.FORM;
-
 function transitionTo(state) {
   if (_currentUIState === state) return;
   _currentUIState = state;
-
   const formCard = document.getElementById('form-card');
   const progress = document.getElementById('build-progress');
   const success  = document.getElementById('build-success');
-
   if (formCard) formCard.style.display    = state === UIState.FORM     ? '' : 'none';
   if (progress) progress.classList.toggle('show', state === UIState.PROGRESS);
   if (success)  success.classList.toggle('show',  state === UIState.SUCCESS);
 }
-
 function showFormCard()     { transitionTo(UIState.FORM); }
 function showProgressCard() { transitionTo(UIState.PROGRESS); }
 function showSuccessCard()  { transitionTo(UIState.SUCCESS); }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    FORM VALIDATION
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function validateForm() {
-  const fields = {
+  const f = {
     url:  document.getElementById('websiteUrl')?.value?.trim()  ?? '',
     name: document.getElementById('appName')?.value?.trim()     ?? '',
     pkg:  document.getElementById('packageName')?.value?.trim() ?? '',
@@ -1734,532 +1565,532 @@ function validateForm() {
     vc:   document.getElementById('versionCode')?.value?.trim() ?? '',
   };
   const icon = iconInput?.files[0];
-
-  // URL
-  try { new URL(fields.url); }
-  catch { toast('error', 'Invalid URL', 'Enter a valid website URL.'); return false; }
-
-  // Prevent data: / javascript: URLs
-  const urlObj = new URL(fields.url);
-  if (!['http:', 'https:'].includes(urlObj.protocol)) {
-    toast('error', 'Invalid URL', 'Only http:// and https:// URLs are allowed.');
-    return false;
-  }
-
-  if (!fields.name)         { toast('error', 'App Name Required', 'Enter a name for your app.');     return false; }
-  if (fields.name.length > 30) { toast('error', 'Name Too Long', 'App name max 30 characters.');    return false; }
-  if (!/^[a-zA-Z][a-zA-Z0-9 _\-]+$/.test(fields.name)) {
-    toast('error', 'Invalid App Name', 'Only letters, numbers, spaces, hyphens and underscores.');
-    return false;
-  }
-  if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(fields.pkg)) {
-    toast('error', 'Invalid Package', 'Use format: com.company.app');
-    return false;
-  }
-  if (!/^\d+\.\d+\.\d+$/.test(fields.vn)) {
-    toast('error', 'Invalid Version', 'Use format: 1.0.0');
-    return false;
-  }
-  const vcInt = parseInt(fields.vc, 10);
-  if (!fields.vc || isNaN(vcInt) || vcInt < 1 || vcInt > 2_100_000_000) {
-    toast('error', 'Invalid Version Code', 'Must be a positive integer.');
-    return false;
-  }
-  if (!icon) { toast('error', 'Icon Required', 'Please upload an app icon.'); return false; }
-  if (icon.size > 5 * 1024 * 1024) { toast('error', 'Icon Too Large', 'Max 5 MB.'); return false; }
-  if (!icon.type.startsWith('image/')) { toast('error', 'Invalid Icon', 'Must be an image file.'); return false; }
-
+  try { new URL(f.url); } catch { toast('error','Invalid URL','Enter a valid website URL.'); return false; }
+  const urlObj = new URL(f.url);
+  if (!['http:','https:'].includes(urlObj.protocol)) { toast('error','Invalid URL','Only http:// and https:// URLs are allowed.'); return false; }
+  if (!f.name)          { toast('error','App Name Required','Enter a name for your app.'); return false; }
+  if (f.name.length>30) { toast('error','Name Too Long','App name max 30 characters.'); return false; }
+  if (!/^[a-zA-Z][a-zA-Z0-9 _\-]+$/.test(f.name)) { toast('error','Invalid App Name','Only letters, numbers, spaces, hyphens and underscores.'); return false; }
+  if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(f.pkg)) { toast('error','Invalid Package','Use format: com.company.app'); return false; }
+  if (!/^\d+\.\d+\.\d+$/.test(f.vn)) { toast('error','Invalid Version','Use format: 1.0.0'); return false; }
+  const vcInt = parseInt(f.vc, 10);
+  if (!f.vc || isNaN(vcInt) || vcInt < 1 || vcInt > 2_100_000_000) { toast('error','Invalid Version Code','Must be a positive integer.'); return false; }
+  if (!icon) { toast('error','Icon Required','Please upload an app icon.'); return false; }
+  if (icon.size > 5*1024*1024) { toast('error','Icon Too Large','Max 5 MB.'); return false; }
+  if (!icon.type.startsWith('image/')) { toast('error','Invalid Icon','Must be an image file.'); return false; }
   return true;
 }
 
-/* ─────────────────────────────────────────────
-   FORM SUBMIT  (debounced, locked)
-───────────────────────────────────────────── */
-document.getElementById('apkForm')?.addEventListener('submit', async function (e) {
+/* ═══════════════════════════════════════════════════
+   FORM SUBMIT
+═══════════════════════════════════════════════════ */
+document.getElementById('apkForm')?.addEventListener('submit', async function(e) {
   e.preventDefault();
-
-  if (Build.submitLocked) {
-    toast('info', 'Already Building', 'A build is already in progress.');
-    return;
-  }
-
+  if (Build.submitLocked) { toast('info','Already Building','A build is already in progress.'); return; }
   if (!validateForm()) return;
-
-  // Debounce: ignore double-submit within threshold
   if (Build.submitTimer) return;
   Build.submitTimer = setTimeout(() => { Build.submitTimer = null; }, SUBMIT_DEBOUNCE_MS);
-
-  Build.lockSubmit();
-  Build.reset();
-  showProgressCard();
-  startBuildProgress();
-  toast('info', 'Build Started', 'Your APK is being compiled on our servers.');
-
-  // Build FormData
+  Build.lockSubmit(); Build.reset(); showProgressCard(); startBuildProgress();
+  toast('info','Build Started','Your APK is being compiled on our servers.');
   const formData = new FormData();
-  const fields = ['websiteUrl', 'appName', 'packageName', 'versionName', 'versionCode'];
-  fields.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) formData.append(id, el.value.trim());
-  });
+  FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) formData.append(id, el.value.trim()); });
   if (iconInput?.files[0]) formData.append('icon', iconInput.files[0]);
-
   Build.abortController = new AbortController();
-
   try {
-    const response = await fetch(`${API_BASE}/api/build-apk`, {
-      method: 'POST',
-      body:   formData,
-      signal: Build.abortController.signal,
-    });
-
-    if (!response.ok) {
-      const body = await safeJsonParse(response);
-      throw new Error(body?.error ?? `Server error ${response.status}`);
-    }
-
+    const response = await fetch(`${API_BASE}/api/build-apk`, { method:'POST', body:formData, signal:Build.abortController.signal });
+    if (!response.ok) { const body = await safeJsonParse(response); throw new Error(body?.error ?? `Server error ${response.status}`); }
     const result = await safeJsonParse(response);
     if (!result || typeof result !== 'object') throw new Error('Invalid server response.');
-
     if (result.queued === true) {
       const projectId = sanitizeProjectId(result.projectId);
       if (!projectId) throw new Error('Server returned invalid project ID.');
       const mins = Math.ceil((result.estimatedWaitTime ?? 0) / 60000);
-      toast('info', 'Build Queued', `You're #${result.position ?? '?'} in queue. ~${mins} min wait.`);
-      updateTimeBanner(0, 'Waiting in Queue', `Estimated wait: ${mins} minute${mins !== 1 ? 's' : ''}`);
+      toast('info','Build Queued',`You're #${result.position ?? '?'} in queue. ~${mins} min wait.`);
+      updateTimeBanner(0,'Waiting in Queue',`Estimated wait: ${mins} minute${mins !== 1 ? 's' : ''}`);
       pollBuildStatus(projectId);
-
     } else if (result.success === true) {
       const projectId = sanitizeProjectId(result.projectId);
       if (!projectId) throw new Error('Server returned invalid project ID.');
-      stopBuildProgress();
-      completeBuildProgress();
+      stopBuildProgress(); completeBuildProgress();
       const url = `${API_BASE}/download/${projectId}.apk`;
-      const buildData = { downloadUrl: url, buildTime: 0, projectId };
+      const buildData = { downloadUrl:url, buildTime:0, projectId, appName: document.getElementById('appName')?.value?.trim() ?? '', builtAt: Date.now() };
       saveCache(CACHE_KEY_BUILD, buildData);
+      saveBuildToHistory(buildData);
       setTimeout(() => showSuccess(buildData), 900);
-
-    } else {
-      throw new Error(result.error ?? 'Build failed — unknown reason.');
-    }
-
-  } catch (err) {
-    if (err.name === 'AbortError') return; // user navigated away — silent
-    stopBuildProgress();
-    Build.unlockSubmit();
-    showFormCard();
-    showModal({
-      icon:      '<i class="fa-solid fa-circle-exclamation"></i>',
-      iconClass: 'error',
-      title:     'Build Failed',
-      msg:       err.message ?? 'An unexpected error occurred. Please try again.',
-      actions:   [{ label: 'Try Again', cls: 'primary', icon: 'fa-solid fa-rotate-right' }],
-    });
+    } else { throw new Error(result.error ?? 'Build failed — unknown reason.'); }
+  } catch(err) {
+    if (err.name === 'AbortError') return;
+    stopBuildProgress(); Build.unlockSubmit(); showFormCard();
+    showModal({ icon:'<i class="fa-solid fa-circle-exclamation"></i>', iconClass:'error', title:'Build Failed',
+      msg: err.message ?? 'An unexpected error occurred. Please try again.',
+      actions:[{ label:'Try Again', cls:'primary', icon:'fa-solid fa-rotate-right' }] });
   }
 });
 
-/* ─────────────────────────────────────────────
-   RIPPLE (button feedback)
-───────────────────────────────────────────── */
-document.getElementById('buildButton')?.addEventListener('click', function (e) {
-  const r    = document.createElement('div');
-  r.className = 'ripple';
-  const rect = this.getBoundingClientRect();
-  const size = Math.max(rect.width, rect.height);
-  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px`;
-  this.appendChild(r);
-  setTimeout(() => r.remove(), 700);
+/* Ripple */
+document.getElementById('buildButton')?.addEventListener('click', function(e) {
+  const r = document.createElement('div'); r.className = 'ripple';
+  const rect = this.getBoundingClientRect(), size = Math.max(rect.width, rect.height);
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
+  this.appendChild(r); setTimeout(() => r.remove(), 700);
 });
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    BUILD STATUS POLLING
-   Fixed: all logic inside the async callback,
-   proper guard, accumulated counters, backoff.
-───────────────────────────────────────────── */
-/**
- * @param {string} projectId  — validated project ID
- */
+═══════════════════════════════════════════════════ */
 function pollBuildStatus(projectId) {
-  // Guard: only one poll loop at a time
   if (Build.projectId === projectId && Build.statusInterval) return;
+  Build.clearTimers(); Build.abort();
+  Build.projectId = projectId; Build.fetchInFlight = false;
+  Build.consecutiveErrors = 0; Build.rateLimitHits = 0; Build.pollCount = 0;
+  Build.stageIndex = 1;
 
-  // Tear down any prior loop
-  Build.clearTimers();
-  Build.abort();
-
-  Build.projectId        = projectId;
-  Build.fetchInFlight    = false;
-  Build.consecutiveErrors = 0;
-  Build.rateLimitHits    = 0;
-  Build.pollCount        = 0;
-  Build.stageIndex       = 1; // simulation already started at 0
-
-  // Hard timeout — fires regardless of poll state
   Build.statusTimeout = setTimeout(() => {
-    Build.clearTimers();
-    stopBuildProgress();
-    Build.unlockSubmit();
-    showFormCard();
-    toast('error', 'Build Timeout', 'Build took too long. Please try again.');
+    Build.clearTimers(); stopBuildProgress(); Build.unlockSubmit(); showFormCard();
+    toast('error','Build Timeout','Build took too long. Please try again.');
   }, POLL_TIMEOUT_MS);
 
-  // Core poll function
   async function doPoll() {
-    // Skip if a fetch is already running
     if (Build.fetchInFlight) return;
-    Build.fetchInFlight = true;
-    Build.pollCount++;
-
-    // Advance progress simulation one step per poll tick
-    if (Build.stageIndex < STAGES.length - 1) {
-      advanceStage(Build.stageIndex + 1);
-    }
-
+    Build.fetchInFlight = true; Build.pollCount++;
+    if (Build.stageIndex < STAGES.length - 1) advanceStage(Build.stageIndex + 1);
     Build.abortController = new AbortController();
-
     try {
-      const res = await fetch(`${API_BASE}/api/build-status/${projectId}`, {
-        method:  'GET',
-        cache:   'no-store',
-        signal:  Build.abortController.signal,
-      });
-
-      // Rate limiting — exponential backoff
+      const res = await fetch(`${API_BASE}/api/build-status/${projectId}`, { method:'GET', cache:'no-store', signal:Build.abortController.signal });
       if (res.status === 429) {
         Build.rateLimitHits++;
-        const backoffMs = Math.min(POLL_INTERVAL_MS * (2 ** Build.rateLimitHits), 5 * 60_000);
-        console.warn(`[APKBuilder] Rate limited. Backoff ${backoffMs}ms (hit #${Build.rateLimitHits})`);
         if (Build.rateLimitHits >= MAX_RATE_LIMIT_HITS) {
-          Build.clearTimers();
-          stopBuildProgress();
-          Build.unlockSubmit();
-          showFormCard();
-          toast('error', 'Rate Limited', 'Server is busy. Please try again later.');
+          Build.clearTimers(); stopBuildProgress(); Build.unlockSubmit(); showFormCard();
+          toast('error','Rate Limited','Server is busy. Please try again later.');
         }
-        return; // don't count as consecutive error
+        return;
       }
-
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
       const status = await safeJsonParse(res);
       if (!status || typeof status !== 'object') throw new Error('Invalid status response.');
-
-      // Reset error counter on successful response
       Build.consecutiveErrors = 0;
-      Build.rateLimitHits     = Math.max(0, Build.rateLimitHits - 1); // decay
-
+      Build.rateLimitHits = Math.max(0, Build.rateLimitHits - 1);
       const titleEl  = document.getElementById('time-banner-title');
       const detailEl = document.getElementById('time-banner-detail');
-
       if (status.status === 'queued') {
-        const pos  = status.position ?? '?';
-        const rem  = Math.max(1, Math.ceil((status.estimatedTimeRemaining ?? 0) / 60000));
-        const runs = status.queueInfo?.currentBuilds   ?? '?';
-        const cap  = status.queueInfo?.maxConcurrent   ?? 4;
+        const pos = status.position ?? '?';
+        const rem = Math.max(1, Math.ceil((status.estimatedTimeRemaining ?? 0) / 60000));
         if (titleEl)  titleEl.textContent  = `Position ${pos} in Queue`;
-        if (detailEl) detailEl.textContent = `~${rem} min remaining · ${runs}/${cap} builds running`;
-
+        if (detailEl) detailEl.textContent = `~${rem} min remaining · ${status.queueInfo?.currentBuilds ?? '?'}/${status.queueInfo?.maxConcurrent ?? 4} builds running`;
       } else if (status.status === 'building') {
-        const rem = Math.max(2, Math.ceil((POLL_TIMEOUT_MS / 2 - (Date.now() - Build.startTime)) / 60000));
+        const rem = Math.max(2, Math.ceil((POLL_TIMEOUT_MS/2 - (Date.now()-Build.startTime)) / 60000));
         if (titleEl)  titleEl.textContent  = 'Building APK';
         if (detailEl) detailEl.textContent = `~${rem} minute${rem !== 1 ? 's' : ''} remaining`;
-
       } else if (status.status === 'completed') {
-        Build.clearTimers();
-        completeBuildProgress();
+        Build.clearTimers(); completeBuildProgress();
         const dl = sanitizeProjectId(status.projectId ?? projectId);
         if (!dl) throw new Error('Completed but no valid project ID returned.');
         const url = `${API_BASE}/download/${dl}.apk`;
-        const buildData = {
-          downloadUrl: url,
-          buildTime:   (status.completedAt ?? Date.now()) - (status.startedAt ?? Build.startTime ?? Date.now()),
-          projectId:   dl,
-        };
+        const buildData = { downloadUrl:url, buildTime:(status.completedAt ?? Date.now())-(status.startedAt ?? Build.startTime ?? Date.now()), projectId:dl, appName: document.getElementById('appName')?.value?.trim() ?? '', builtAt: Date.now() };
         saveCache(CACHE_KEY_BUILD, buildData);
+        saveBuildToHistory(buildData);
         setTimeout(() => showSuccess(buildData), 900);
-
       } else if (status.status === 'failed') {
-        Build.clearTimers();
-        throw new Error(status.error ?? 'Build failed on server.');
-
-      } else {
-        // Unknown status — treat as transient, don't crash
-        console.warn('[APKBuilder] Unknown status:', status.status);
+        Build.clearTimers(); throw new Error(status.error ?? 'Build failed on server.');
       }
-
-    } catch (err) {
+    } catch(err) {
       if (err.name === 'AbortError') return;
-
       Build.consecutiveErrors++;
-      console.error(`[APKBuilder] Poll error #${Build.consecutiveErrors}:`, err.message);
-
       if (Build.consecutiveErrors >= MAX_CONSECUTIVE_ERRS) {
-        Build.clearTimers();
-        stopBuildProgress();
-        Build.unlockSubmit();
-        showFormCard();
-        toast('error', 'Build Error', err.message ?? 'Unable to fetch build status.');
+        Build.clearTimers(); stopBuildProgress(); Build.unlockSubmit(); showFormCard();
+        toast('error','Build Error', err.message ?? 'Unable to fetch build status.');
       }
-
-    } finally {
-      Build.fetchInFlight = false;
-    }
+    } finally { Build.fetchInFlight = false; }
   }
-
-  // Start immediately, then repeat
   doPoll();
   Build.statusInterval = setInterval(doPoll, POLL_INTERVAL_MS);
 }
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    SUCCESS VIEW
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function showSuccess(result, fromCache = false) {
-  Build.unlockSubmit();
-  showSuccessCard();
-
-  const dl = document.getElementById('downloadLink');
-  if (dl) dl.href = result.downloadUrl ?? '#';
-
-  const urlDisplay = document.getElementById('dl-url-display');
-  if (urlDisplay) urlDisplay.textContent = result.downloadUrl ?? '—';
-
+  Build.unlockSubmit(); showSuccessCard();
+  const dl = document.getElementById('downloadLink'); if (dl) dl.href = result.downloadUrl ?? '#';
+  const urlDisplay = document.getElementById('dl-url-display'); if (urlDisplay) urlDisplay.textContent = result.downloadUrl ?? '—';
   const sub = document.getElementById('success-sub');
-  if (sub && result.buildTime > 0) {
-    sub.textContent = `Built in ${Math.round(result.buildTime / 1000)}s. Ready to install.`;
-  }
-
-  if (fromCache) {
-    toast('info', 'Build Restored', 'Your previous build is still available.');
-  } else {
-    toast('success', 'APK Ready!', 'Your Android app has been built successfully.', 6000);
-    showModal({
-      icon:      '<i class="fa-solid fa-check"></i>',
-      iconClass: 'success',
-      title:     'Build Complete!',
-      msg:       'Your APK has been compiled and is ready to download. Available for 48 hours.',
-      actions:   [
-        {
-          label: 'Download APK',
-          cls:   'green',
-          icon:  'fa-solid fa-download',
-          cb:    () => window.open(result.downloadUrl, '_blank', 'noopener,noreferrer'),
-        },
-        { label: 'Dismiss', cls: 'secondary' },
-      ],
-    });
+  if (sub && result.buildTime > 0) sub.textContent = `Built in ${Math.round(result.buildTime/1000)}s. Ready to install.`;
+  if (fromCache) toast('info','Build Restored','Your previous build is still available.');
+  else {
+    toast('success','APK Ready!','Your Android app has been built successfully.',6000);
+    showModal({ icon:'<i class="fa-solid fa-check"></i>', iconClass:'success', title:'Build Complete!',
+      msg:'Your APK has been compiled and is ready to download. Available for 48 hours.',
+      actions:[
+        { label:'Download APK', cls:'green', icon:'fa-solid fa-download', cb:() => window.open(result.downloadUrl,'_blank','noopener,noreferrer') },
+        { label:'Dismiss', cls:'secondary' }
+      ] });
   }
 }
-
-document.getElementById('downloadLink')?.addEventListener('click', () =>
-  toast('success', 'Downloading', 'APK download started.')
-);
-
-document.getElementById('copy-url')?.addEventListener('click', function () {
+document.getElementById('downloadLink')?.addEventListener('click', () => toast('success','Downloading','APK download started.'));
+document.getElementById('copy-url')?.addEventListener('click', function() {
   const url = document.getElementById('dl-url-display')?.textContent;
-  if (url && url !== '—') {
-    navigator.clipboard.writeText(url)
-      .then(() => toast('success', 'Copied', 'URL copied to clipboard.'))
-      .catch(() => toast('error', 'Copy Failed', 'Could not copy to clipboard.'));
-  }
+  if (url && url !== '—') navigator.clipboard.writeText(url).then(() => toast('success','Copied','URL copied to clipboard.')).catch(() => toast('error','Copy Failed','Could not copy to clipboard.'));
 });
-
-document.getElementById('install-btn')?.addEventListener('click', function () {
-  const url = document.getElementById('downloadLink')?.href;
-  if (!url) return;
+document.getElementById('install-btn')?.addEventListener('click', function() {
+  const url = document.getElementById('downloadLink')?.href; if (!url) return;
   const isAndroid = /android/i.test(navigator.userAgent);
   if (isAndroid) {
-    showModal({
-      icon: '<i class="fa-solid fa-mobile-screen-button"></i>',
-      iconClass: 'install',
-      title: 'Install APK',
-      msg:   "You're about to download and install the APK. Make sure 'Unknown Sources' is enabled in Settings.",
-      actions: [
-        { label: 'Install Now', cls: 'primary', icon: 'fa-solid fa-download',
-          cb: () => window.open(url, '_blank', 'noopener,noreferrer') },
-        { label: 'Cancel', cls: 'secondary' },
-      ],
-    });
+    showModal({ icon:'<i class="fa-solid fa-mobile-screen-button"></i>', iconClass:'install', title:'Install APK',
+      msg:"You're about to download and install the APK. Make sure 'Unknown Sources' is enabled in Settings.",
+      actions:[{ label:'Install Now', cls:'primary', icon:'fa-solid fa-download', cb:() => window.open(url,'_blank','noopener,noreferrer') },{ label:'Cancel', cls:'secondary' }] });
   } else {
-    showModal({
-      icon: '<i class="fa-brands fa-android"></i>',
-      iconClass: 'info',
-      title: 'Android Device Required',
-      msg:   'Direct installation is only available on Android devices. Download the APK on your Android phone or tablet.',
-      actions: [{ label: 'Got It', cls: 'primary' }],
-    });
+    showModal({ icon:'<i class="fa-brands fa-android"></i>', iconClass:'info', title:'Android Device Required',
+      msg:'Direct installation is only available on Android devices. Download the APK on your Android phone or tablet.',
+      actions:[{ label:'Got It', cls:'primary' }] });
   }
 });
-
-document.getElementById('build-new-btn')?.addEventListener('click', function () {
-  showModal({
-    icon: '<i class="fa-solid fa-plus"></i>',
-    iconClass: 'info',
-    title: 'Build New APK?',
-    msg:   'Return to the form to build a new APK. Your previous build remains available for 48 hours.',
-    actions: [
-      {
-        label: 'Yes, Build New',
-        cls:   'primary',
-        icon:  'fa-solid fa-rocket',
-        cb:    () => { showFormCard(); restoreFormCache(); },
-      },
-      { label: 'Keep This Build', cls: 'secondary' },
-    ],
-  });
+document.getElementById('build-new-btn')?.addEventListener('click', function() {
+  showModal({ icon:'<i class="fa-solid fa-plus"></i>', iconClass:'info', title:'Build New APK?',
+    msg:'Return to the form to build a new APK. Your previous build remains available for 48 hours.',
+    actions:[
+      { label:'Yes, Build New', cls:'primary', icon:'fa-solid fa-rocket', cb:() => { showFormCard(); restoreFormCache(); } },
+      { label:'Keep This Build', cls:'secondary' }
+    ] });
 });
 
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    QUEUE STATUS POLLING
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 async function updateQueueStatus() {
   try {
-    const res = await fetch(`${API_BASE}/api/queue-status`, { cache: 'no-store' });
+    const res = await fetch(`${API_BASE}/api/queue-status`, { cache:'no-store' });
     if (!res.ok) return;
     const q = await safeJsonParse(res);
     if (!q || typeof q !== 'object') return;
-    const setText = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.textContent = val ?? '–';
-    };
-    setText('q-active', q.currentBuilds);
-    setText('q-queued', q.queueLength);
-    setText('q-cap',    q.maxConcurrent ?? 4);
-    setText('q-total',  q.totalActiveRequests);
-  } catch (_) {
-    // Queue status is cosmetic — fail silently
-  }
+    const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val ?? '–'; };
+    setText('q-active', q.currentBuilds); setText('q-queued', q.queueLength);
+    setText('q-cap', q.maxConcurrent ?? 4); setText('q-total', q.totalActiveRequests);
+  } catch (_) {}
 }
-
 function startQueuePolling() {
-  if (Build.queueInterval) return; // already running
+  if (Build.queueInterval) return;
   updateQueueStatus();
   Build.queueInterval = setInterval(updateQueueStatus, QUEUE_POLL_MS);
 }
 
-function stopQueuePolling() {
-  if (Build.queueInterval) {
-    clearInterval(Build.queueInterval);
-    Build.queueInterval = null;
-  }
-}
+/* ═══════════════════════════════════════════════════
+   NETWORK / VISIBILITY / UNLOAD
+═══════════════════════════════════════════════════ */
+window.addEventListener('online',  () => toast('success','Back Online','Network connection restored.'));
+window.addEventListener('offline', () => toast('error','Offline','Network connection lost. Build polling paused.'));
+window.addEventListener('pagehide', () => { Build.abort(); Build.clearTimers(); });
 
-/* ─────────────────────────────────────────────
-   NETWORK / VISIBILITY HANDLERS
-───────────────────────────────────────────── */
-window.addEventListener('online', () => {
-  toast('success', 'Back Online', 'Network connection restored.');
-  // If a build was in progress, the poll interval is still running — it will self-recover.
-});
-
-window.addEventListener('offline', () => {
-  toast('error', 'Offline', 'Network connection lost. Build polling paused.');
-});
-
-// Pause polling when tab is hidden, resume when visible
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    // Don't stop the interval — just let in-flight guard skip ticks.
-    // This avoids orphaned builds if tab is hidden briefly.
-  } else {
-    // Tab became visible — if we were polling, trigger an immediate poll
-    if (Build.statusInterval && Build.projectId) {
-      // Fire immediately without waiting for next interval tick
-      const projectId = Build.projectId;
-      if (!Build.fetchInFlight) {
-        // Re-invoke by dispatching a manual poll via timeout 0
-        setTimeout(() => {
-          if (Build.statusInterval && Build.projectId === projectId) {
-            // Trigger a poll by calling the private tick — we re-poll on visibility restore
-            // Since doPoll is scoped inside pollBuildStatus, we restart the loop only if
-            // significant time has passed (>= 1 poll interval)
-          }
-        }, 0);
-      }
-    }
-  }
-});
-
-// Handle page unload — clean up
-window.addEventListener('pagehide', () => {
-  Build.abort();
-  Build.clearTimers();
-});
-
-/* ─────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════
    PAGE LOAD RECOVERY
-   Restore prior build from cache on reload.
-───────────────────────────────────────────── */
+═══════════════════════════════════════════════════ */
 function tryRecoverBuild() {
   const cached = loadCache(CACHE_KEY_BUILD);
-  if (!cached || !cached.downloadUrl || !cached.projectId) return;
+  if (!cached?.downloadUrl || !cached?.projectId) return;
   const projectId = sanitizeProjectId(cached.projectId);
   if (!projectId) return;
-
-  // Show the previous build with a "restored" notice
   showSuccess(cached, true);
 }
 
-/* ─────────────────────────────────────────────
-   KEYBOARD SHORTCUTS
-───────────────────────────────────────────── */
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') hideModal();
+/* ═══════════════════════════════════════════════════
+   HELPERS
+═══════════════════════════════════════════════════ */
+async function safeJsonParse(response) { try { return await response.json(); } catch (_) { return null; } }
+function sanitizeProjectId(id) {
+  if (typeof id !== 'string') return null;
+  const clean = id.trim();
+  return /^[a-zA-Z0-9_\-]{1,64}$/.test(clean) ? clean : null;
+}
 
+/* ═══════════════════════════════════════════════════
+   KEYBOARD SHORTCUTS
+═══════════════════════════════════════════════════ */
+document.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
     const builderPage = document.getElementById('page-builder');
     const formCard    = document.getElementById('form-card');
-    if (
-      builderPage?.classList.contains('active') &&
-      formCard?.style.display !== 'none' &&
-      !Build.submitLocked
-    ) {
+    if (builderPage?.classList.contains('active') && formCard?.style.display !== 'none' && !Build.submitLocked) {
       e.preventDefault();
       document.getElementById('apkForm')?.dispatchEvent(new Event('submit'));
     }
   }
 });
 
-/* ─────────────────────────────────────────────
-   HELPERS
-───────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════
+   BUILD HISTORY (multi-build, 48h TTL)
+═══════════════════════════════════════════════════ */
+const CACHE_KEY_HISTORY = 'af_build_history_v1';
+const HISTORY_MAX       = 20;
 
-/**
- * Safe JSON parse from a Response object.
- * Returns null on failure instead of throwing.
- */
-async function safeJsonParse(response) {
+function saveBuildToHistory(buildData) {
   try {
-    return await response.json();
-  } catch (_) {
+    const raw = localStorage.getItem(CACHE_KEY_HISTORY);
+    let history = [];
+    if (raw) { try { history = JSON.parse(raw); } catch (_) {} }
+    if (!Array.isArray(history)) history = [];
+    // Remove any existing entry with same projectId
+    history = history.filter(b => b.projectId !== buildData.projectId);
+    // Prepend new entry
+    history.unshift({ ...buildData, savedAt: Date.now() });
+    // Prune expired (48h) and cap at HISTORY_MAX
+    const cutoff = Date.now() - CACHE_TTL;
+    history = history.filter(b => (b.savedAt ?? b.builtAt ?? 0) > cutoff).slice(0, HISTORY_MAX);
+    localStorage.setItem(CACHE_KEY_HISTORY, JSON.stringify(history));
+  } catch (_) {}
+}
+
+function loadBuildHistory() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY_HISTORY);
+    if (!raw) return [];
+    let history = JSON.parse(raw);
+    if (!Array.isArray(history)) return [];
+    const cutoff = Date.now() - CACHE_TTL;
+    history = history.filter(b => {
+      const ts = b.savedAt ?? b.builtAt ?? 0;
+      return ts > cutoff && sanitizeProjectId(b.projectId) && b.downloadUrl;
+    });
+    // Persist pruned version
+    localStorage.setItem(CACHE_KEY_HISTORY, JSON.stringify(history));
+    return history;
+  } catch (_) { return []; }
+}
+
+function renderMyApks() {
+  const container = document.getElementById('my-apks-list');
+  if (!container) return;
+  const history = loadBuildHistory();
+
+  if (history.length === 0) {
+    container.innerHTML = `
+      <div class="apks-empty">
+        <div class="apks-empty-icon"><i class="fa-solid fa-box-open" aria-hidden="true"></i></div>
+        <div class="apks-empty-title">No builds yet</div>
+        <div class="apks-empty-sub">Your completed APK builds will appear here for 48 hours.</div>
+        <button class="btn-hero primary" style="margin-top:20px" onclick="showPage('builder')">
+          <i class="fa-solid fa-rocket" aria-hidden="true"></i>Build Your First APK
+        </button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = history.map((b, idx) => {
+    const ts       = b.savedAt ?? b.builtAt ?? 0;
+    const elapsed  = Date.now() - ts;
+    const expireMs = CACHE_TTL - elapsed;
+    const expireH  = Math.floor(expireMs / 3600000);
+    const expireM  = Math.floor((expireMs % 3600000) / 60000);
+    const expireStr = expireH > 0 ? `${expireH}h ${expireM}m` : `${expireM}m`;
+    const builtStr  = formatRelativeTime(ts);
+    const appName   = sanitizeText(b.appName || 'Unknown App');
+    const safeUrl   = sanitizeText(b.downloadUrl || '');
+    const pkgId     = sanitizeText(b.projectId   || '');
+    const buildSecs = b.buildTime > 0 ? `${Math.round(b.buildTime/1000)}s` : '—';
+
+    return `
+      <div class="apk-item" id="apk-item-${idx}">
+        <div class="apk-item-icon"><i class="fa-brands fa-android" aria-hidden="true"></i></div>
+        <div class="apk-item-body">
+          <div class="apk-item-name">${appName}</div>
+          <div class="apk-item-meta">
+            <span class="apk-meta-chip"><i class="fa-solid fa-clock" aria-hidden="true"></i>${builtStr}</span>
+            <span class="apk-meta-chip expiry"><i class="fa-solid fa-hourglass-half" aria-hidden="true"></i>Expires in ${expireStr}</span>
+            <span class="apk-meta-chip"><i class="fa-solid fa-stopwatch" aria-hidden="true"></i>Built in ${buildSecs}</span>
+          </div>
+          <div class="apk-item-url">
+            <i class="fa-solid fa-link" aria-hidden="true"></i>
+            <span class="apk-url-text" title="${safeUrl}">${safeUrl}</span>
+          </div>
+        </div>
+        <div class="apk-item-actions">
+          <button class="apk-btn-copy" onclick="copyApkUrl(${idx})" title="Copy URL" aria-label="Copy download URL">
+            <i class="fa-solid fa-copy" aria-hidden="true"></i>
+          </button>
+          <a class="apk-btn-dl" href="${safeUrl}" target="_blank" rel="noopener noreferrer"
+             onclick="toast('success','Downloading','APK download started.')" aria-label="Download APK">
+            <i class="fa-solid fa-download" aria-hidden="true"></i>
+            <span>Download</span>
+          </a>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function copyApkUrl(idx) {
+  const history = loadBuildHistory();
+  const url = history[idx]?.downloadUrl;
+  if (url) {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('success','Copied','Download URL copied to clipboard.'))
+      .catch(() => toast('error','Copy Failed','Could not copy to clipboard.'));
+  }
+}
+
+function formatRelativeTime(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'Just now';
+  if (mins < 60) return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs} hour${hrs !== 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days !== 1 ? 's' : ''} ago`;
+}
+
+/* ═══════════════════════════════════════════════════
+   DRAGGABLE FLOATERS
+═══════════════════════════════════════════════════ */
+(function initDraggableFloaters() {
+  // Default positions in % of hero container (set after DOM is ready)
+  const defaults = [
+    { x: 6,  y: 12 },
+    { x: 75, y: 22 },
+    { x: 9,  y: 72 },
+    { x: 72, y: 65 },
+  ];
+
+  const STORAGE_KEY = 'af_floater_positions';
+
+  function loadPositions() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length === 4) return arr;
+      }
+    } catch (_) {}
     return null;
   }
-}
 
-/**
- * Validate and sanitize a project ID received from the server.
- * Accepts only alphanumeric + hyphen/underscore, 1–64 chars.
- */
-function sanitizeProjectId(id) {
-  if (typeof id !== 'string') return null;
-  const clean = id.trim();
-  if (/^[a-zA-Z0-9_\-]{1,64}$/.test(clean)) return clean;
-  return null;
-}
-
-/* ─────────────────────────────────────────────
-   INIT
-───────────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
-  restoreFormCache();
-
-  // Start queue polling if builder page is already active on load
-  if (document.getElementById('page-builder')?.classList.contains('active')) {
-    startQueuePolling();
+  function savePositions(positions) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(positions)); } catch (_) {}
   }
 
-  // Attempt to recover a prior build session
+  function clamp(val, min, max) { return Math.min(Math.max(val, min), max); }
+
+  function initFloaters() {
+    const container = document.getElementById('hero-floaters');
+    if (!container) return;
+
+    const floaters = Array.from(container.querySelectorAll('.floater'));
+    if (!floaters.length) return;
+
+    const saved = loadPositions();
+
+    floaters.forEach((el, i) => {
+      const pos = saved ? saved[i] : defaults[i];
+      el.style.left = pos.x + '%';
+      el.style.top  = pos.y + '%';
+      // Remove CSS animation positioning
+      el.style.position = 'absolute';
+
+      let isDragging = false;
+      let startX = 0, startY = 0;
+      let startLeft = 0, startTop = 0;
+      let rafId = null;
+      let pendingX = 0, pendingY = 0;
+
+      function getContainerRect() { return container.getBoundingClientRect(); }
+
+      function applyPosition() {
+        const rect = getContainerRect();
+        const elW  = el.offsetWidth;
+        const elH  = el.offsetHeight;
+
+        // Convert pending px to % clamped to container
+        const minPx = 0, maxX = rect.width  - elW, maxY = rect.height - elH;
+        const clampedX = clamp(pendingX, minPx, maxX);
+        const clampedY = clamp(pendingY, minPx, maxY);
+
+        el.style.left = (clampedX / rect.width  * 100) + '%';
+        el.style.top  = (clampedY / rect.height * 100) + '%';
+        rafId = null;
+      }
+
+      function onMoveStart(clientX, clientY) {
+        isDragging = true;
+        const rect = getContainerRect();
+        const elRect = el.getBoundingClientRect();
+        startX = clientX;
+        startY = clientY;
+        startLeft = elRect.left - rect.left;
+        startTop  = elRect.top  - rect.top;
+        pendingX  = startLeft;
+        pendingY  = startTop;
+        el.classList.add('is-dragging');
+        el.classList.add('was-dragged');
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+      }
+
+      function onMove(clientX, clientY) {
+        if (!isDragging) return;
+        const dx = clientX - startX;
+        const dy = clientY - startY;
+        pendingX = startLeft + dx;
+        pendingY = startTop  + dy;
+        if (!rafId) rafId = requestAnimationFrame(applyPosition);
+      }
+
+      function onMoveEnd() {
+        if (!isDragging) return;
+        isDragging = false;
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        applyPosition();
+        el.classList.remove('is-dragging');
+
+        // Persist all floater positions
+        const cRect = getContainerRect();
+        const positions = floaters.map(f => {
+          const fr = f.getBoundingClientRect();
+          return {
+            x: clamp((fr.left - cRect.left) / cRect.width  * 100, 0, 100),
+            y: clamp((fr.top  - cRect.top)  / cRect.height * 100, 0, 100),
+          };
+        });
+        savePositions(positions);
+        document.body.style.userSelect = '';
+        document.body.style.webkitUserSelect = '';
+      }
+
+      // Mouse events
+      el.addEventListener('mousedown', e => { e.preventDefault(); onMoveStart(e.clientX, e.clientY); });
+      document.addEventListener('mousemove', e => { if (isDragging) onMove(e.clientX, e.clientY); });
+      document.addEventListener('mouseup', () => { if (isDragging) onMoveEnd(); });
+
+      // Touch events
+      el.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        onMoveStart(t.clientX, t.clientY);
+      }, { passive: false });
+      el.addEventListener('touchmove', e => {
+        e.preventDefault();
+        const t = e.touches[0];
+        onMove(t.clientX, t.clientY);
+      }, { passive: false });
+      el.addEventListener('touchend', () => onMoveEnd(), { passive: true });
+      el.addEventListener('touchcancel', () => onMoveEnd(), { passive: true });
+    });
+  }
+
+  // Init after DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initFloaters);
+  } else {
+    initFloaters();
+  }
+})();
+
+/* ═══════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  restoreFormCache();
+  if (document.getElementById('page-builder')?.classList.contains('active')) startQueuePolling();
   tryRecoverBuild();
+  // Migrate: if there's a legacy single-build cache entry, add it to history
+  const legacySingle = loadCache(CACHE_KEY_BUILD);
+  if (legacySingle?.downloadUrl && legacySingle?.projectId) saveBuildToHistory(legacySingle);
 });
 </script>
 </body>
