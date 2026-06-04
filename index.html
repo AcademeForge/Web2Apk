@@ -244,14 +244,53 @@ nav a.active::after{transform:translateX(-50%) scaleX(1)}
   flex-shrink:0;
 }
 #menu-toggle:hover{background:var(--bg-card2);color:var(--text-primary)}
-#menu-toggle span{
-  display:block;width:22px;height:1.5px;
-  background:currentColor;border-radius:1px;
-  margin:5px 0;transition:var(--transition);
+#menu-toggle{
+  display:none;
+  width:42px;
+  height:42px;
+  background:none;
+  border:none;
+  cursor:pointer;
+  padding:0;
+  position:relative;
+  color:var(--text-secondary);
 }
-#menu-toggle.open span:nth-child(1){transform:translateY(6.5px) rotate(45deg)}
-#menu-toggle.open span:nth-child(2){opacity:0;transform:scaleX(0)}
-#menu-toggle.open span:nth-child(3){transform:translateY(-6.5px) rotate(-45deg)}
+
+#menu-toggle span{
+  position:absolute;
+  left:10px;
+  width:22px;
+  height:2px;
+  background:currentColor;
+  border-radius:999px;
+  transition:.3s ease;
+}
+
+#menu-toggle span:nth-child(1){
+  top:12px;
+}
+
+#menu-toggle span:nth-child(2){
+  top:20px;
+}
+
+#menu-toggle span:nth-child(3){
+  top:28px;
+}
+
+#menu-toggle.open span:nth-child(1){
+  top:20px;
+  transform:rotate(45deg);
+}
+
+#menu-toggle.open span:nth-child(2){
+  opacity:0;
+}
+
+#menu-toggle.open span:nth-child(3){
+  top:20px;
+  transform:rotate(-45deg);
+}
 
 /* ── Mobile menu (slide from right) ── */
 #mobile-menu{
@@ -742,10 +781,32 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
   .back-nav-btn span{display:none} /* hide text, keep icon */
 }
 
-@media(max-width:480px){
-  .logo-name{display:none} /* very small: just show logo icon */
-  .header-inner{padding:0 12px}
-  .hero-h1{letter-spacing:-1.5px}
+@media(max-width:768px){
+
+  .header-inner{
+    height:68px;
+    padding:0 14px;
+  }
+
+  .logo-wrap{
+    gap:8px;
+  }
+
+  .logo-img{
+    width:34px;
+    height:34px;
+  }
+
+  .logo-name{
+    display:block;
+    font-size:.9rem;
+    font-weight:700;
+  }
+
+  .header-controls{
+    gap:6px;
+  }
+
 }
 </style>
 </head>
