@@ -1500,7 +1500,7 @@ function pollBuildStatus(projectId) {
         toast('error', 'Build Error', err.message);
       }
     }
-  }, 3000);
+  }, 30000);
   setTimeout(() => clearInterval(interval), 12 * 60 * 1000);
 }
 
@@ -1576,8 +1576,23 @@ async function updateQueueStatus() {
     document.getElementById('q-total').textContent = q.totalActiveRequests ?? '–';
   } catch(e) {}
 }
-updateQueueStatus();
-setInterval(updateQueueStatus, 10000);
+let queueInterval = null;
+
+function startQueuePolling() {
+
+    if (queueInterval) {
+        clearInterval(queueInterval);
+    }
+
+    updateQueueStatus();
+
+    queueInterval = setInterval(
+        updateQueueStatus,
+        60000
+    );
+}
+
+startQueuePolling();
 
 /* ── KEYBOARD SHORTCUTS ── */
 document.addEventListener('keydown', e => {
