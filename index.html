@@ -1464,46 +1464,156 @@ function validateForm() {
   if (!icon) { toast('error','Icon Required','Please upload an app icon.'); return false; }
   return true;
 }
-
+  
+let buildStatusInterval = null;
+let buildStatusTimeout = null;
+  
 function pollBuildStatus(projectId) {
-  let polls = 0, stageI = 1;
-  const interval = setInterval(async () => {
-    polls++;
-    if (stageI < STAGES.length - 1) advanceStage(stageI++);
-    try {
-      const res = await fetch(`${API_BASE}/api/build-status/${projectId}`);
-      const status = await res.json();
-      if (!status) throw new Error('Invalid response');
 
-      // Update time banner based on real status
-      if (status.status === 'queued') {
-        const rem = Math.ceil(status.estimatedTimeRemaining / 60000);
-        const titleEl = document.getElementById('time-banner-title');
-        const detailEl = document.getElementById('time-banner-detail');
-        if (titleEl) titleEl.textContent = `Position ${status.position} in Queue`;
-        if (detailEl) detailEl.textContent = `~${rem} minute${rem !== 1 ? 's' : ''} remaining · ${status.queueInfo?.currentBuilds || '?'}/${status.queueInfo?.maxConcurrent || 4} builds running`;
-      } else if (status.status === 'building') {
-        updateProgressFromStatus('building');
-      } else if (status.status === 'completed') {
-        clearInterval(interval); completeBuildProgress();
-        const url = `${API_BASE}/download/${projectId}.apk`;
-        const buildData = { downloadUrl: url, buildTime: status.completedAt - status.startedAt };
-        saveCache(CACHE_KEY_BUILD, buildData);
-        setTimeout(() => showSuccess(buildData), 900);
-      } else if (status.status === 'failed') {
-        clearInterval(interval); throw new Error(status.error || 'Build failed on server');
+  if (buildStatusInterval) {
+    clearInterval(buildStatusInterval);
+    buildStatusInterval = null;
+  }
+
+  if (buildStatusTimeout) {
+    clearTimeout(buildStatusTimeout);
+    buildStatusTimeout = null;
+  }
+
+  let polls = 0;
+  let stageI = 1;
+
+  buildStatusInterval = setInterval(async () => {
+
+    polls++;
+
+    if (stageI < STAGES.length - 1) {
+      advanceStage(stageI++);
+    }
+
+    try {
+
+      const res = await fetch(
+        `${API_BASE}/api/build-status/${projectId}`,
+        {
+          method: 'GET',
+          cache: 'no-store'
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
       }
-    } catch(err) {
+
+      const status = await res.json();
+
+      if (!status) {
+        throw new Error('Invalid response');
+      }
+
+      if (status.status === 'queued') {
+
+        const rem = Math.ceil(
+          (status.estimatedTimeRemaining || 0) / 60000
+        );
+
+        const titleEl =
+          document.getElementById('time-banner-title');
+
+        const detailEl =
+          document.getElementById('time-banner-detail');
+
+        if (titleEl) {
+          titleEl.textContent =
+            `Position ${status.position} in Queue`;
+        }
+
+        if (detailEl) {
+          detailEl.textContent =
+            `~${rem} minute${rem !== 1 ? 's' : ''} remaining · ${
+              status.queueInfo?.currentBuilds || '?'
+            }/${
+              status.queueInfo?.maxConcurrent || 4
+            } builds running`;
+        }
+
+      } else if (status.status === 'building') {
+
+        updateProgressFromStatus('building');
+
+      } else if (status.status === 'completed') {
+
+        clearInterval(buildStatusInterval);
+        buildStatusInterval = null;
+
+        clearTimeout(buildStatusTimeout);
+        buildStatusTimeout = null;
+
+        completeBuildProgress();
+
+        const url =
+          `${API_BASE}/download/${projectId}.apk`;
+
+        const buildData = {
+          downloadUrl: url,
+          buildTime:
+            (status.completedAt || Date.now()) -
+            (status.startedAt || Date.now())
+        };
+
+        saveCache(CACHE_KEY_BUILD, buildData);
+
+        setTimeout(() => {
+          showSuccess(buildData);
+        }, 900);
+
+      } else if (status.status === 'failed') {
+
+        clearInterval(buildStatusInterval);
+        buildStatusInterval = null;
+
+        clearTimeout(buildStatusTimeout);
+        buildStatusTimeout = null;
+
+        throw new Error(
+          status.error || 'Build failed on server'
+        );
+      }
+
+    } catch (err) {
+
+      console.error('Build status polling error:', err);
+
       if (polls >= 5) {
-        clearInterval(interval); stopBuildProgress();
+
+        clearInterval(buildStatusInterval);
+        buildStatusInterval = null;
+
+        clearTimeout(buildStatusTimeout);
+        buildStatusTimeout = null;
+
+        stopBuildProgress();
         showFormCard();
-        toast('error', 'Build Error', err.message);
+
+        toast(
+          'error',
+          'Build Error',
+          err.message || 'Unable to fetch build status'
+        );
       }
     }
-  }, 30000);
-  setTimeout(() => clearInterval(interval), 12 * 60 * 1000);
-}
 
+  }, 30000);
+
+  buildStatusTimeout = setTimeout(() => {
+
+    clearInterval(buildStatusInterval);
+    buildStatusInterval = null;
+
+    buildStatusTimeout = null;
+
+  }, 12 * 60 * 1000);
+}
 function showSuccess(result, fromCache=false) {
   showSuccessCard();
   const dl = document.getElementById('downloadLink');
@@ -1592,7 +1702,14 @@ function startQueuePolling() {
     );
 }
 
-startQueuePolling();
+if (
+    document
+      .getElementById("page-builder")
+      .classList
+      .contains("active")
+) {
+    startQueuePolling();
+}
 
 /* ── KEYBOARD SHORTCUTS ── */
 document.addEventListener('keydown', e => {
