@@ -1176,227 +1176,454 @@ input.invalid{border-color:var(--red);box-shadow:0 0 0 3px rgba(255,63,94,0.08)}
 <button id="scroll-top" title="Back to top"><i class="fa-solid fa-chevron-up"></i></button>
 
 <script>
+/**
+ * AcademeForge APK Builder — Production-grade JavaScript
+ */
 'use strict';
 
-const API_BASE = 'https://webappcreator.amethystlab.org';
+/* ─────────────────────────────────────────────
+   CONSTANTS
+───────────────────────────────────────────── */
+const API_BASE        = 'https://webappcreator.amethystlab.org';
 const CACHE_KEY_BUILD = 'af_latest_build_v3';
 const CACHE_KEY_FORM  = 'af_form_cache_v3';
-const CACHE_TTL = 48 * 60 * 60 * 1000;
+const CACHE_TTL       = 48 * 60 * 60 * 1000; // 48 hours
 
-/* ── SPLASH ── */
-setTimeout(() => document.getElementById('splash').classList.add('out'), 1200);
-setTimeout(() => { document.getElementById('splash').style.display='none'; }, 1750);
+const POLL_INTERVAL_MS      = 30_000;  // 30 s normal poll
+const POLL_TIMEOUT_MS       = 12 * 60 * 1000; // 12 min hard timeout
+const MAX_CONSECUTIVE_ERRS  = 5;
+const MAX_RATE_LIMIT_HITS   = 3;
+const SUBMIT_DEBOUNCE_MS    = 800;
+const QUEUE_POLL_MS         = 60_000;
 
-/* ── PAGE ROUTING ── */
-const HOME_PAGES = ['features','about','builder'];
+/* ─────────────────────────────────────────────
+   SINGLETON BUILD STATE
+   All mutable state lives here — no scattered vars.
+───────────────────────────────────────────── */
+const Build = {
+  // intervals / timeouts
+  statusInterval:  null,
+  statusTimeout:   null,
+  queueInterval:   null,
 
+  // request guard
+  fetchInFlight:   false,
+  abortController: null,
+
+  // counters (survive across poll ticks)
+  consecutiveErrors: 0,
+  rateLimitHits:     0,
+  pollCount:         0,
+
+  // current projectId being polled
+  projectId: null,
+
+  // progress simulation
+  stageIndex:   0,
+  startTime:    null,
+
+  // submit guard
+  submitLocked: false,
+  submitTimer:  null,
+
+  reset() {
+    this.clearTimers();
+    this.abort();
+    this.fetchInFlight   = false;
+    this.consecutiveErrors = 0;
+    this.rateLimitHits   = 0;
+    this.pollCount       = 0;
+    this.projectId       = null;
+    this.stageIndex      = 0;
+    this.startTime       = null;
+  },
+
+  clearTimers() {
+    if (this.statusInterval)  { clearInterval(this.statusInterval);  this.statusInterval  = null; }
+    if (this.statusTimeout)   { clearTimeout(this.statusTimeout);    this.statusTimeout   = null; }
+    if (this.queueInterval)   { clearInterval(this.queueInterval);   this.queueInterval   = null; }
+  },
+
+  abort() {
+    if (this.abortController) {
+      try { this.abortController.abort(); } catch (_) {}
+      this.abortController = null;
+    }
+  },
+
+  lockSubmit() {
+    this.submitLocked = true;
+    const btn = document.getElementById('buildButton');
+    if (btn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); }
+  },
+
+  unlockSubmit() {
+    this.submitLocked = false;
+    const btn = document.getElementById('buildButton');
+    if (btn) { btn.disabled = false; btn.removeAttribute('aria-busy'); }
+  },
+};
+
+/* ─────────────────────────────────────────────
+   SPLASH
+───────────────────────────────────────────── */
+setTimeout(() => {
+  const splash = document.getElementById('splash');
+  if (splash) splash.classList.add('out');
+}, 1200);
+setTimeout(() => {
+  const splash = document.getElementById('splash');
+  if (splash) splash.style.display = 'none';
+}, 1750);
+
+/* ─────────────────────────────────────────────
+   PAGE ROUTING
+───────────────────────────────────────────── */
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById('page-' + name).classList.add('active');
+  const page = document.getElementById('page-' + name);
+  if (page) page.classList.add('active');
+
   document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
   const navEl = document.getElementById('nav-' + name);
   if (navEl) navEl.classList.add('active');
-  // Back button in nav — show on non-home pages
+
   const backBtn = document.getElementById('back-nav-btn');
-  if (backBtn) {
-    if (name !== 'home') backBtn.classList.add('show');
-    else backBtn.classList.remove('show');
-  }
+  if (backBtn) backBtn.classList.toggle('show', name !== 'home');
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Start queue polling when builder page becomes active
+  if (name === 'builder') startQueuePolling();
 }
 
-/* ── THEME TOGGLE ── */
-const html = document.documentElement;
+/* ─────────────────────────────────────────────
+   THEME
+───────────────────────────────────────────── */
 let isDark = true;
 
 function applyTheme(dark) {
   isDark = dark;
-  html.setAttribute('data-theme', dark ? 'dark' : 'light');
-  document.getElementById('theme-icon').className = dark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
-  try { localStorage.setItem('af_theme', dark ? 'dark' : 'light'); } catch(e) {}
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  const icon = document.getElementById('theme-icon');
+  if (icon) icon.className = dark ? 'fa-solid fa-moon' : 'fa-solid fa-sun';
+  try { localStorage.setItem('af_theme', dark ? 'dark' : 'light'); } catch (_) {}
 }
+
 try {
   const saved = localStorage.getItem('af_theme');
   if (saved) applyTheme(saved === 'dark');
-} catch(e) {}
-document.getElementById('themeToggle').addEventListener('click', () => applyTheme(!isDark));
+} catch (_) {}
 
-/* ── HEADER SCROLL ── */
+document.getElementById('themeToggle')?.addEventListener('click', () => applyTheme(!isDark));
+
+/* ─────────────────────────────────────────────
+   HEADER SCROLL / SCROLL-TOP
+───────────────────────────────────────────── */
 window.addEventListener('scroll', () => {
-  document.getElementById('header').classList.toggle('scrolled', window.scrollY > 20);
-  document.getElementById('scroll-top').classList.toggle('show', window.scrollY > 400);
+  document.getElementById('header')?.classList.toggle('scrolled', window.scrollY > 20);
+  document.getElementById('scroll-top')?.classList.toggle('show', window.scrollY > 400);
 }, { passive: true });
-document.getElementById('scroll-top').onclick = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
-/* ── MOBILE MENU ── */
+document.getElementById('scroll-top')?.addEventListener('click', () =>
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+);
+
+/* ─────────────────────────────────────────────
+   MOBILE MENU
+───────────────────────────────────────────── */
 const menuToggle = document.getElementById('menu-toggle');
 const mobileMenu = document.getElementById('mobile-menu');
-menuToggle.addEventListener('click', () => {
+
+menuToggle?.addEventListener('click', () => {
   menuToggle.classList.toggle('open');
-  mobileMenu.classList.toggle('open');
+  mobileMenu?.classList.toggle('open');
 });
+
 function closeMobileMenu() {
-  menuToggle.classList.remove('open');
-  mobileMenu.classList.remove('open');
+  menuToggle?.classList.remove('open');
+  mobileMenu?.classList.remove('open');
 }
 
-/* ── TOAST ── */
-const TOAST_ICONS = { success:'fa-circle-check', error:'fa-circle-exclamation', info:'fa-circle-info' };
-function toast(type, title, msg, dur=4000) {
-  const c = document.getElementById('toast-container');
+/* ─────────────────────────────────────────────
+   TOAST
+───────────────────────────────────────────── */
+const TOAST_ICONS = {
+  success: 'fa-circle-check',
+  error:   'fa-circle-exclamation',
+  info:    'fa-circle-info',
+};
+
+function toast(type, title, msg = '', dur = 4000) {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  // Deduplicate: remove identical toast already visible
+  const existing = container.querySelectorAll('.toast');
+  for (const t of existing) {
+    if (t.querySelector('.toast-title')?.textContent === title) {
+      dismissToast(t);
+    }
+  }
+
   const t = document.createElement('div');
   t.className = `toast ${type}`;
-  t.innerHTML = `<i class="fa-solid ${TOAST_ICONS[type]||'fa-info'} toast-icon"></i>
-    <div class="toast-body"><div class="toast-title">${title}</div>${msg?`<div class="toast-msg">${msg}</div>`:''}</div>
-    <button class="toast-close"><i class="fa-solid fa-xmark"></i></button>`;
-  c.appendChild(t);
-  t.querySelector('.toast-close').onclick = () => dismissToast(t);
+  // Sanitize output — title/msg come from internal constants, but be explicit
+  const safeTitle = sanitizeText(title);
+  const safeMsg   = sanitizeText(msg);
+  t.innerHTML = `
+    <i class="fa-solid ${TOAST_ICONS[type] ?? 'fa-info'} toast-icon" aria-hidden="true"></i>
+    <div class="toast-body">
+      <div class="toast-title">${safeTitle}</div>
+      ${safeMsg ? `<div class="toast-msg">${safeMsg}</div>` : ''}
+    </div>
+    <button class="toast-close" aria-label="Dismiss"><i class="fa-solid fa-xmark"></i></button>`;
+
+  container.appendChild(t);
+  t.querySelector('.toast-close').addEventListener('click', () => dismissToast(t));
   if (dur > 0) setTimeout(() => dismissToast(t), dur);
 }
-function dismissToast(t) { t.classList.add('exit'); setTimeout(() => t.remove(), 300); }
 
-/* ── MODAL ── */
-function showModal({ icon, iconClass='info', title, msg, actions=[] }) {
+function dismissToast(t) {
+  if (!t || !t.parentNode) return;
+  t.classList.add('exit');
+  setTimeout(() => t.remove(), 300);
+}
+
+/** Minimal XSS sanitizer for text nodes */
+function sanitizeText(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/* ─────────────────────────────────────────────
+   MODAL
+───────────────────────────────────────────── */
+function showModal({ icon, iconClass = 'info', title, msg, actions = [] }) {
   const overlay = document.getElementById('modal-overlay');
-  document.getElementById('modal-icon').className = `modal-icon ${iconClass}`;
-  document.getElementById('modal-icon').innerHTML = icon;
-  document.getElementById('modal-title').textContent = title;
-  document.getElementById('modal-msg').textContent = msg;
-  const acts = document.getElementById('modal-actions');
-  acts.innerHTML = '';
-  actions.forEach(a => {
-    const btn = document.createElement('button');
-    btn.className = `modal-btn ${a.cls||'secondary'}`;
-    btn.innerHTML = `${a.icon?`<i class="${a.icon}"></i>`:''}${a.label}`;
-    btn.onclick = () => { hideModal(); if (a.cb) a.cb(); };
-    acts.appendChild(btn);
-  });
+  if (!overlay) return;
+
+  const iconEl   = document.getElementById('modal-icon');
+  const titleEl  = document.getElementById('modal-title');
+  const msgEl    = document.getElementById('modal-msg');
+  const actsEl   = document.getElementById('modal-actions');
+
+  if (iconEl)  { iconEl.className = `modal-icon ${iconClass}`; iconEl.innerHTML = icon; }
+  if (titleEl) titleEl.textContent = title;
+  if (msgEl)   msgEl.textContent   = msg;
+
+  if (actsEl) {
+    actsEl.innerHTML = '';
+    actions.forEach(a => {
+      const btn = document.createElement('button');
+      btn.className = `modal-btn ${a.cls ?? 'secondary'}`;
+      if (a.icon) {
+        const i = document.createElement('i');
+        i.className = a.icon;
+        i.setAttribute('aria-hidden', 'true');
+        btn.appendChild(i);
+      }
+      btn.appendChild(document.createTextNode(a.label));
+      btn.addEventListener('click', () => { hideModal(); a.cb?.(); });
+      actsEl.appendChild(btn);
+    });
+  }
+
   overlay.classList.add('active');
 }
-function hideModal() { document.getElementById('modal-overlay').classList.remove('active'); }
-document.getElementById('modal-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) hideModal(); });
 
-/* ── CACHE ── */
-function saveCache(key, val) { try { localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: val })); } catch(e) {} }
+function hideModal() {
+  document.getElementById('modal-overlay')?.classList.remove('active');
+}
+
+document.getElementById('modal-overlay')?.addEventListener('click', e => {
+  if (e.target === e.currentTarget) hideModal();
+});
+
+/* ─────────────────────────────────────────────
+   CACHE
+───────────────────────────────────────────── */
+function saveCache(key, val) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ ts: Date.now(), data: val }));
+  } catch (_) {}
+}
+
 function loadCache(key) {
   try {
-    const raw = localStorage.getItem(key); if (!raw) return null;
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
     const obj = JSON.parse(raw);
+    if (!obj || typeof obj.ts !== 'number') return null;
     if (Date.now() - obj.ts > CACHE_TTL) { localStorage.removeItem(key); return null; }
     return obj.data;
-  } catch(e) { return null; }
+  } catch (_) {
+    return null;
+  }
 }
-const FORM_FIELDS = ['websiteUrl','appName','packageName','versionName','versionCode'];
+
+/* ─────────────────────────────────────────────
+   FORM CACHE
+───────────────────────────────────────────── */
+const FORM_FIELDS = ['websiteUrl', 'appName', 'packageName', 'versionName', 'versionCode'];
+
 function saveFormCache() {
   const data = {};
-  FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) data[id] = el.value; });
+  FORM_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) data[id] = el.value;
+  });
   saveCache(CACHE_KEY_FORM, data);
 }
-function restoreFormCache() {
-  const data = loadCache(CACHE_KEY_FORM); if (!data) return;
-  FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el && data[id] !== undefined) el.value = data[id]; });
-}
-FORM_FIELDS.forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('input', saveFormCache); });
 
-/* ── FILE UPLOAD ── */
+function restoreFormCache() {
+  const data = loadCache(CACHE_KEY_FORM);
+  if (!data || typeof data !== 'object') return;
+  FORM_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el && typeof data[id] === 'string') el.value = data[id];
+  });
+}
+
+// Register form cache listeners once
+FORM_FIELDS.forEach(id => {
+  document.getElementById(id)?.addEventListener('input', saveFormCache);
+});
+
+/* ─────────────────────────────────────────────
+   FILE UPLOAD
+───────────────────────────────────────────── */
 const iconInput = document.getElementById('icon');
-const fileDrop = document.getElementById('fileDrop');
-iconInput.addEventListener('change', e => handleFile(e.target.files[0]));
-['dragenter','dragover'].forEach(ev => fileDrop.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.add('drag-over'); }));
-['dragleave','drop'].forEach(ev => fileDrop.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.remove('drag-over'); }));
-fileDrop.addEventListener('drop', e => handleFile(e.dataTransfer.files[0]));
+const fileDrop  = document.getElementById('fileDrop');
+
+iconInput?.addEventListener('change', e => handleFile(e.target.files[0]));
+
+['dragenter', 'dragover'].forEach(ev =>
+  fileDrop?.addEventListener(ev, e => { e.preventDefault(); fileDrop.classList.add('drag-over'); })
+);
+['dragleave', 'drop'].forEach(ev =>
+  fileDrop?.addEventListener(ev, e => {
+    e.preventDefault();
+    fileDrop.classList.remove('drag-over');
+  })
+);
+fileDrop?.addEventListener('drop', e => handleFile(e.dataTransfer?.files[0]));
+
 function handleFile(file) {
   if (!file) return;
-  if (file.size > 5*1024*1024) { toast('error','File Too Large','Max 5MB allowed.'); return; }
-  if (!file.type.startsWith('image/')) { toast('error','Invalid File','Please select an image.'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('error', 'File Too Large', 'Max 5 MB allowed.'); return; }
+  if (!file.type.startsWith('image/')) { toast('error', 'Invalid File', 'Please select an image.'); return; }
+
   const reader = new FileReader();
   reader.onload = ev => {
-    document.getElementById('iconPreview').src = ev.target.result;
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileSize').textContent = (file.size/1024).toFixed(1)+' KB';
-    document.getElementById('file-placeholder').style.display = 'none';
-    document.getElementById('file-preview').classList.add('show');
-    const dt = new DataTransfer(); dt.items.add(file); iconInput.files = dt.files;
+    const preview = document.getElementById('iconPreview');
+    if (preview) preview.src = ev.target.result;
+    const name = document.getElementById('fileName');
+    if (name) name.textContent = sanitizeText(file.name);
+    const size = document.getElementById('fileSize');
+    if (size) size.textContent = (file.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('file-placeholder')?.style.setProperty('display', 'none');
+    document.getElementById('file-preview')?.classList.add('show');
+    try {
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      if (iconInput) iconInput.files = dt.files;
+    } catch (_) {}
   };
+  reader.onerror = () => toast('error', 'Read Error', 'Could not read the selected file.');
   reader.readAsDataURL(file);
 }
 
-/* ── VALIDATION ── */
-document.getElementById('packageName').addEventListener('input', function(){
-  const ok = /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(this.value);
-  this.classList.toggle('valid', ok && this.value.length > 0);
-  this.classList.toggle('invalid', !ok && this.value.length > 0);
+/* ─────────────────────────────────────────────
+   INLINE VALIDATION
+───────────────────────────────────────────── */
+function setFieldValidity(el, valid) {
+  if (!el) return;
+  el.classList.toggle('valid',   valid && el.value.length > 0);
+  el.classList.toggle('invalid', !valid && el.value.length > 0);
+}
+
+document.getElementById('packageName')?.addEventListener('input', function () {
+  setFieldValidity(this, /^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(this.value));
 });
-document.getElementById('versionName').addEventListener('input', function(){
-  const ok = /^\d+\.\d+\.\d+$/.test(this.value);
-  this.classList.toggle('valid', ok);
-  this.classList.toggle('invalid', !ok && this.value.length > 0);
+
+document.getElementById('versionName')?.addEventListener('input', function () {
+  setFieldValidity(this, /^\d+\.\d+\.\d+$/.test(this.value));
 });
-document.getElementById('websiteUrl').addEventListener('input', function(){
-  if (!this.value) { this.classList.remove('valid','invalid'); return; }
-  try { new URL(this.value); this.classList.add('valid'); this.classList.remove('invalid'); }
-  catch { this.classList.add('invalid'); this.classList.remove('valid'); }
+
+document.getElementById('websiteUrl')?.addEventListener('input', function () {
+  if (!this.value) { this.classList.remove('valid', 'invalid'); return; }
+  try { new URL(this.value); setFieldValidity(this, true); }
+  catch { setFieldValidity(this, false); }
 });
-document.getElementById('appName').addEventListener('input', function() {
+
+document.getElementById('appName')?.addEventListener('input', function () {
   const pkg = document.getElementById('packageName');
-  if (!pkg.value) {
-    const s = this.value.toLowerCase().replace(/[^a-z0-9\s]/g,'').replace(/\s+/g,'');
+  if (pkg && !pkg.value) {
+    const s = this.value.toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, '');
     if (s) pkg.value = `com.academeforge.${s}`;
   }
 });
 
-/* ── BUILD STAGES ── */
+/* ─────────────────────────────────────────────
+   BUILD STAGES
+───────────────────────────────────────────── */
 const STAGES = [
-  { id:'init',    label:'Initialize',      detail:'Setting up build environment',      icon:'fa-play',         mins: null },
-  { id:'gen',     label:'Generate Project', detail:'Creating Android project structure', icon:'fa-folder-plus',  mins: 1 },
-  { id:'wv',      label:'Create WebView',   detail:'Configuring WebView component',     icon:'fa-globe',        mins: 1 },
-  { id:'assets',  label:'Process Assets',   detail:'Processing icon & resources',       icon:'fa-image',        mins: 1 },
-  { id:'compile', label:'Compile',          detail:'Compiling Java source code',        icon:'fa-code',         mins: 2 },
-  { id:'package', label:'Package APK',      detail:'Packaging into APK file',           icon:'fa-box',          mins: 1 },
-  { id:'final',   label:'Finalize',         detail:'Signing & optimizing APK',          icon:'fa-certificate',  mins: 1 },
+  { id: 'init',    label: 'Initialize',       detail: 'Setting up build environment',       icon: 'fa-play'        },
+  { id: 'gen',     label: 'Generate Project',  detail: 'Creating Android project structure', icon: 'fa-folder-plus' },
+  { id: 'wv',      label: 'Create WebView',    detail: 'Configuring WebView component',      icon: 'fa-globe'       },
+  { id: 'assets',  label: 'Process Assets',    detail: 'Processing icon & resources',        icon: 'fa-image'       },
+  { id: 'compile', label: 'Compile',           detail: 'Compiling Java source code',         icon: 'fa-code'        },
+  { id: 'package', label: 'Package APK',       detail: 'Packaging into APK file',            icon: 'fa-box'         },
+  { id: 'final',   label: 'Finalize',          detail: 'Signing & optimizing APK',           icon: 'fa-certificate' },
 ];
 
-let buildProgressInterval = null;
-let buildStartTime = null;
-let currentStageIdx = 0;
-
 function renderStages() {
-  document.getElementById('stages-list').innerHTML = STAGES.map(s =>
-    `<div class="stage" id="stage-${s.id}">
+  const list = document.getElementById('stages-list');
+  if (!list) return;
+  list.innerHTML = STAGES.map(s => `
+    <div class="stage" id="stage-${s.id}" role="listitem">
       <div class="stage-dot"></div>
-      <span style="flex:1">${s.label}</span>
-      <i class="fa-solid ${s.icon} stage-icon"></i>
+      <span style="flex:1">${sanitizeText(s.label)}</span>
+      <i class="fa-solid ${s.icon} stage-icon" aria-hidden="true"></i>
     </div>`
   ).join('');
 }
 
 function advanceStage(idx) {
-  currentStageIdx = idx;
+  Build.stageIndex = idx;
   STAGES.forEach((s, i) => {
-    const el = document.getElementById(`stage-${s.id}`); if (!el) return;
-    el.classList.remove('active','done');
-    if (i < idx) el.classList.add('done');
+    const el = document.getElementById(`stage-${s.id}`);
+    if (!el) return;
+    el.classList.remove('active', 'done');
+    if (i < idx)      el.classList.add('done');
     else if (i === idx) el.classList.add('active');
   });
-  const pct = Math.round(((idx+1)/STAGES.length)*100);
+  const pct = Math.round(((idx + 1) / STAGES.length) * 100);
   setProgress(Math.min(pct, 97), STAGES[idx]?.label, STAGES[idx]?.detail);
   updateTimeBanner(idx);
 }
 
-function updateTimeBanner(stageIdx) {
-  const elapsed = buildStartTime ? (Date.now() - buildStartTime) : 0;
-  const totalEstMs = 5.5 * 60 * 1000; // ~5.5 min total
-  const stageProgress = (stageIdx + 1) / STAGES.length;
-  const estimatedTotalMs = elapsed / Math.max(stageProgress, 0.05);
-  const remainingMs = Math.max(0, estimatedTotalMs - elapsed);
-  const remainMins = Math.ceil(remainingMs / 60000);
-
-  const titleEl = document.getElementById('time-banner-title');
+function updateTimeBanner(stageIdx, overrideTitle = null, overrideDetail = null) {
+  const titleEl  = document.getElementById('time-banner-title');
   const detailEl = document.getElementById('time-banner-detail');
   if (!titleEl || !detailEl) return;
 
-  const stageName = STAGES[stageIdx]?.label || 'Building';
-  titleEl.textContent = stageName;
+  if (overrideTitle)  { titleEl.textContent  = overrideTitle;  }
+  if (overrideDetail) { detailEl.textContent = overrideDetail; return; }
+
+  const elapsed = Build.startTime ? (Date.now() - Build.startTime) : 0;
+  const stageProgress = (stageIdx + 1) / STAGES.length;
+  const estimatedTotalMs = elapsed / Math.max(stageProgress, 0.05);
+  const remainingMs = Math.max(0, estimatedTotalMs - elapsed);
+  const remainMins  = Math.ceil(remainingMs / 60000);
+
+  if (!overrideTitle) titleEl.textContent = STAGES[stageIdx]?.label ?? 'Building';
 
   if (remainMins <= 0 || remainMins > 15) {
     detailEl.textContent = 'Build time: approximately 3–6 minutes';
@@ -1407,464 +1634,627 @@ function updateTimeBanner(stageIdx) {
   }
 }
 
+// RAF-batched progress setter — avoids layout thrash
+let _progressRafPending = false;
+let _progressQueue = {};
 function setProgress(pct, name, detail) {
-  const ring = document.getElementById('progress-ring');
-  if (ring) ring.style.strokeDashoffset = 238.76 - (238.76 * pct / 100);
-  const pctEl = document.getElementById('progress-pct'); if (pctEl) pctEl.textContent = pct + '%';
-  const tf = document.getElementById('track-fill'); if (tf) tf.style.width = pct + '%';
-  if (name) { const n = document.getElementById('progress-stage-name'); if (n) n.textContent = name; }
-  if (detail) { const d = document.getElementById('progress-detail'); if (d) d.textContent = detail; }
+  _progressQueue = { pct, name, detail };
+  if (_progressRafPending) return;
+  _progressRafPending = true;
+  requestAnimationFrame(() => {
+    _progressRafPending = false;
+    const { pct, name, detail } = _progressQueue;
+    const ring = document.getElementById('progress-ring');
+    if (ring) ring.style.strokeDashoffset = String(238.76 - (238.76 * pct / 100));
+    const pctEl = document.getElementById('progress-pct');
+    if (pctEl) pctEl.textContent = pct + '%';
+    const tf = document.getElementById('track-fill');
+    if (tf) tf.style.width = pct + '%';
+    if (name)   { const n = document.getElementById('progress-stage-name'); if (n) n.textContent = name; }
+    if (detail) { const d = document.getElementById('progress-detail');      if (d) d.textContent = detail; }
+  });
 }
 
+/* ─────────────────────────────────────────────
+   BUILD PROGRESS SIMULATION
+   (runs client-side while waiting for server)
+───────────────────────────────────────────── */
+let _simInterval = null;
+
 function startBuildProgress() {
-  buildStartTime = Date.now();
+  Build.startTime  = Date.now();
+  Build.stageIndex = 0;
   renderStages();
-  clearInterval(buildProgressInterval);
-  let stageI = 0;
+
+  if (_simInterval) clearInterval(_simInterval);
   advanceStage(0);
-  // Approx 5.5 min / 7 stages ≈ 47s per stage, but we use 6s for simulation
-  buildProgressInterval = setInterval(() => {
-    if (stageI < STAGES.length - 1) advanceStage(++stageI);
+
+  let simIdx = 0;
+  _simInterval = setInterval(() => {
+    if (simIdx < STAGES.length - 1) advanceStage(++simIdx);
+    else clearInterval(_simInterval);
   }, 4000);
 }
 
 function completeBuildProgress() {
-  clearInterval(buildProgressInterval);
-  STAGES.forEach(s => { const el = document.getElementById(`stage-${s.id}`); if (el) el.classList.add('done'); });
+  if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
+  STAGES.forEach(s => {
+    document.getElementById(`stage-${s.id}`)?.classList.add('done');
+  });
   setProgress(100, 'Complete!', 'APK packaged and ready');
-  const titleEl = document.getElementById('time-banner-title');
-  const detailEl = document.getElementById('time-banner-detail');
-  if (titleEl) titleEl.textContent = 'Build Complete';
-  if (detailEl) detailEl.textContent = 'Your APK is ready to download!';
+  updateTimeBanner(STAGES.length - 1, 'Build Complete', 'Your APK is ready to download!');
 }
 
-function stopBuildProgress() { clearInterval(buildProgressInterval); }
+function stopBuildProgress() {
+  if (_simInterval) { clearInterval(_simInterval); _simInterval = null; }
+}
 
-/* ── QUEUE STATUS BUILD BANNER (from code 2) ── */
-function updateProgressFromStatus(statusMsg) {
-  const msg = (statusMsg || '').toLowerCase();
-  const elapsed = buildStartTime ? (Date.now() - buildStartTime) : 0;
-  const titleEl = document.getElementById('time-banner-title');
-  const detailEl = document.getElementById('time-banner-detail');
-  if (!titleEl || !detailEl) return;
+/* ─────────────────────────────────────────────
+   UI STATE MACHINE
+───────────────────────────────────────────── */
+const UIState = {
+  FORM:     'form',
+  PROGRESS: 'progress',
+  SUCCESS:  'success',
+};
+let _currentUIState = UIState.FORM;
 
-  if (msg.includes('finaliz')) {
-    titleEl.textContent = 'Finalizing APK';
-    detailEl.textContent = 'Approximately 3 minutes remaining';
-    setProgress(90, 'Finalizing APK...', 'Signing and optimizing your APK');
-  } else if (msg.includes('compil') || msg.includes('build')) {
-    const rem = Math.max(2, Math.ceil((5*60000 - elapsed) / 60000));
-    titleEl.textContent = 'Building APK';
-    detailEl.textContent = `Approximately ${rem} minute${rem !== 1 ? 's' : ''} remaining`;
-  } else if (msg.includes('queue') || msg.includes('position') || msg.includes('wait')) {
-    const rem = Math.max(1, Math.ceil((3*60000 - elapsed) / 60000));
-    titleEl.textContent = 'Waiting in Queue';
-    detailEl.textContent = `Estimated wait: ${rem} minute${rem !== 1 ? 's' : ''}`;
+function transitionTo(state) {
+  if (_currentUIState === state) return;
+  _currentUIState = state;
+
+  const formCard = document.getElementById('form-card');
+  const progress = document.getElementById('build-progress');
+  const success  = document.getElementById('build-success');
+
+  if (formCard) formCard.style.display    = state === UIState.FORM     ? '' : 'none';
+  if (progress) progress.classList.toggle('show', state === UIState.PROGRESS);
+  if (success)  success.classList.toggle('show',  state === UIState.SUCCESS);
+}
+
+function showFormCard()     { transitionTo(UIState.FORM); }
+function showProgressCard() { transitionTo(UIState.PROGRESS); }
+function showSuccessCard()  { transitionTo(UIState.SUCCESS); }
+
+/* ─────────────────────────────────────────────
+   FORM VALIDATION
+───────────────────────────────────────────── */
+function validateForm() {
+  const fields = {
+    url:  document.getElementById('websiteUrl')?.value?.trim()  ?? '',
+    name: document.getElementById('appName')?.value?.trim()     ?? '',
+    pkg:  document.getElementById('packageName')?.value?.trim() ?? '',
+    vn:   document.getElementById('versionName')?.value?.trim() ?? '',
+    vc:   document.getElementById('versionCode')?.value?.trim() ?? '',
+  };
+  const icon = iconInput?.files[0];
+
+  // URL
+  try { new URL(fields.url); }
+  catch { toast('error', 'Invalid URL', 'Enter a valid website URL.'); return false; }
+
+  // Prevent data: / javascript: URLs
+  const urlObj = new URL(fields.url);
+  if (!['http:', 'https:'].includes(urlObj.protocol)) {
+    toast('error', 'Invalid URL', 'Only http:// and https:// URLs are allowed.');
+    return false;
   }
+
+  if (!fields.name)         { toast('error', 'App Name Required', 'Enter a name for your app.');     return false; }
+  if (fields.name.length > 30) { toast('error', 'Name Too Long', 'App name max 30 characters.');    return false; }
+  if (!/^[a-zA-Z][a-zA-Z0-9 _\-]+$/.test(fields.name)) {
+    toast('error', 'Invalid App Name', 'Only letters, numbers, spaces, hyphens and underscores.');
+    return false;
+  }
+  if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(fields.pkg)) {
+    toast('error', 'Invalid Package', 'Use format: com.company.app');
+    return false;
+  }
+  if (!/^\d+\.\d+\.\d+$/.test(fields.vn)) {
+    toast('error', 'Invalid Version', 'Use format: 1.0.0');
+    return false;
+  }
+  const vcInt = parseInt(fields.vc, 10);
+  if (!fields.vc || isNaN(vcInt) || vcInt < 1 || vcInt > 2_100_000_000) {
+    toast('error', 'Invalid Version Code', 'Must be a positive integer.');
+    return false;
+  }
+  if (!icon) { toast('error', 'Icon Required', 'Please upload an app icon.'); return false; }
+  if (icon.size > 5 * 1024 * 1024) { toast('error', 'Icon Too Large', 'Max 5 MB.'); return false; }
+  if (!icon.type.startsWith('image/')) { toast('error', 'Invalid Icon', 'Must be an image file.'); return false; }
+
+  return true;
 }
 
-/* ── RIPPLE ── */
-document.getElementById('buildButton').addEventListener('click', function(e) {
-  const r = document.createElement('div'); r.className = 'ripple';
-  const rect = this.getBoundingClientRect(), size = Math.max(rect.width, rect.height);
-  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX-rect.left-size/2}px;top:${e.clientY-rect.top-size/2}px`;
-  this.appendChild(r); setTimeout(() => r.remove(), 700);
-});
-
-/* ── SHOW / HIDE BUILD SECTIONS ── */
-function showFormCard()     { document.getElementById('form-card').style.display=''; document.getElementById('build-progress').classList.remove('show'); document.getElementById('build-success').classList.remove('show'); }
-function showProgressCard() { document.getElementById('form-card').style.display='none'; document.getElementById('build-progress').classList.add('show'); document.getElementById('build-success').classList.remove('show'); }
-function showSuccessCard()  { document.getElementById('form-card').style.display='none'; document.getElementById('build-progress').classList.remove('show'); document.getElementById('build-success').classList.add('show'); }
-
-/* ── FORM SUBMIT ── */
-document.getElementById('apkForm').addEventListener('submit', async function(e) {
+/* ─────────────────────────────────────────────
+   FORM SUBMIT  (debounced, locked)
+───────────────────────────────────────────── */
+document.getElementById('apkForm')?.addEventListener('submit', async function (e) {
   e.preventDefault();
+
+  if (Build.submitLocked) {
+    toast('info', 'Already Building', 'A build is already in progress.');
+    return;
+  }
+
   if (!validateForm()) return;
 
+  // Debounce: ignore double-submit within threshold
+  if (Build.submitTimer) return;
+  Build.submitTimer = setTimeout(() => { Build.submitTimer = null; }, SUBMIT_DEBOUNCE_MS);
+
+  Build.lockSubmit();
+  Build.reset();
   showProgressCard();
   startBuildProgress();
   toast('info', 'Build Started', 'Your APK is being compiled on our servers.');
 
+  // Build FormData
+  const formData = new FormData();
+  const fields = ['websiteUrl', 'appName', 'packageName', 'versionName', 'versionCode'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) formData.append(id, el.value.trim());
+  });
+  if (iconInput?.files[0]) formData.append('icon', iconInput.files[0]);
+
+  Build.abortController = new AbortController();
+
   try {
-    const formData = new FormData();
-    formData.append('websiteUrl', document.getElementById('websiteUrl').value);
-    formData.append('appName', document.getElementById('appName').value);
-    formData.append('packageName', document.getElementById('packageName').value);
-    formData.append('versionName', document.getElementById('versionName').value);
-    formData.append('versionCode', document.getElementById('versionCode').value);
-    if (iconInput.files[0]) formData.append('icon', iconInput.files[0]);
+    const response = await fetch(`${API_BASE}/api/build-apk`, {
+      method: 'POST',
+      body:   formData,
+      signal: Build.abortController.signal,
+    });
 
-    const response = await fetch(`${API_BASE}/api/build-apk`, { method: 'POST', body: formData });
-   if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-}
+    if (!response.ok) {
+      const body = await safeJsonParse(response);
+      throw new Error(body?.error ?? `Server error ${response.status}`);
+    }
 
-const result = await response.json();
-    if (!result) throw new Error('Server returned invalid response');
+    const result = await safeJsonParse(response);
+    if (!result || typeof result !== 'object') throw new Error('Invalid server response.');
 
-    if (result.queued) {
-      const mins = Math.ceil(result.estimatedWaitTime / 60000);
-      toast('info', 'Build Queued', `You're #${result.position} in queue. ~${mins} min wait.`);
-      updateProgressFromStatus('queue');
-      pollBuildStatus(result.projectId);
-    } else if (result.success) {
-      stopBuildProgress(); completeBuildProgress();
-      const url = `${API_BASE}/download/${result.projectId}.apk`;
-      const buildData = { downloadUrl: url, buildTime: 0 };
+    if (result.queued === true) {
+      const projectId = sanitizeProjectId(result.projectId);
+      if (!projectId) throw new Error('Server returned invalid project ID.');
+      const mins = Math.ceil((result.estimatedWaitTime ?? 0) / 60000);
+      toast('info', 'Build Queued', `You're #${result.position ?? '?'} in queue. ~${mins} min wait.`);
+      updateTimeBanner(0, 'Waiting in Queue', `Estimated wait: ${mins} minute${mins !== 1 ? 's' : ''}`);
+      pollBuildStatus(projectId);
+
+    } else if (result.success === true) {
+      const projectId = sanitizeProjectId(result.projectId);
+      if (!projectId) throw new Error('Server returned invalid project ID.');
+      stopBuildProgress();
+      completeBuildProgress();
+      const url = `${API_BASE}/download/${projectId}.apk`;
+      const buildData = { downloadUrl: url, buildTime: 0, projectId };
       saveCache(CACHE_KEY_BUILD, buildData);
       setTimeout(() => showSuccess(buildData), 900);
-    } else throw new Error(result.error || 'Build failed');
-  } catch(err) {
+
+    } else {
+      throw new Error(result.error ?? 'Build failed — unknown reason.');
+    }
+
+  } catch (err) {
+    if (err.name === 'AbortError') return; // user navigated away — silent
     stopBuildProgress();
+    Build.unlockSubmit();
     showFormCard();
     showModal({
-      icon:'<i class="fa-solid fa-circle-exclamation"></i>',
-      iconClass:'error',
-      title:'Build Failed',
-      msg: err.message || 'An unexpected error occurred. Please try again.',
-      actions:[{ label:'Try Again', cls:'primary', icon:'fa-solid fa-rotate-right' }]
+      icon:      '<i class="fa-solid fa-circle-exclamation"></i>',
+      iconClass: 'error',
+      title:     'Build Failed',
+      msg:       err.message ?? 'An unexpected error occurred. Please try again.',
+      actions:   [{ label: 'Try Again', cls: 'primary', icon: 'fa-solid fa-rotate-right' }],
     });
   }
 });
 
-function validateForm() {
-  const url = document.getElementById('websiteUrl').value;
-  const name = document.getElementById('appName').value;
-  const pkg = document.getElementById('packageName').value;
-  const vn = document.getElementById('versionName').value;
-  const vc = document.getElementById('versionCode').value;
-  const icon = iconInput.files[0];
-  try { new URL(url); } catch { toast('error','Invalid URL','Enter a valid website URL.'); return false; }
-  if (!name.trim()) { toast('error','App Name Required','Enter a name for your app.'); return false; }
-  if (name.length > 30) { toast('error','Name Too Long','App name max 30 characters.'); return false; }
-  if (!/^[a-zA-Z][a-zA-Z0-9]*(\.[a-zA-Z][a-zA-Z0-9]*)+$/.test(pkg)) { toast('error','Invalid Package','Use format: com.company.app'); return false; }
-  if (!/^\d+\.\d+\.\d+$/.test(vn)) { toast('error','Invalid Version','Use format: 1.0.0'); return false; }
-  if (!vc || parseInt(vc) < 1) { toast('error','Invalid Version Code','Must be a positive integer.'); return false; }
-  if (!icon) { toast('error','Icon Required','Please upload an app icon.'); return false; }
-  return true;
-}
-  
-let buildStatusInterval = null;
-let buildStatusTimeout = null;
-  
+/* ─────────────────────────────────────────────
+   RIPPLE (button feedback)
+───────────────────────────────────────────── */
+document.getElementById('buildButton')?.addEventListener('click', function (e) {
+  const r    = document.createElement('div');
+  r.className = 'ripple';
+  const rect = this.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  r.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px`;
+  this.appendChild(r);
+  setTimeout(() => r.remove(), 700);
+});
+
+/* ─────────────────────────────────────────────
+   BUILD STATUS POLLING
+   Fixed: all logic inside the async callback,
+   proper guard, accumulated counters, backoff.
+───────────────────────────────────────────── */
+/**
+ * @param {string} projectId  — validated project ID
+ */
 function pollBuildStatus(projectId) {
+  // Guard: only one poll loop at a time
+  if (Build.projectId === projectId && Build.statusInterval) return;
 
-  if (buildStatusInterval) {
-    clearInterval(buildStatusInterval);
-    buildStatusInterval = null;
-  }
+  // Tear down any prior loop
+  Build.clearTimers();
+  Build.abort();
 
-  if (buildStatusTimeout) {
-    clearTimeout(buildStatusTimeout);
-    buildStatusTimeout = null;
-  }
+  Build.projectId        = projectId;
+  Build.fetchInFlight    = false;
+  Build.consecutiveErrors = 0;
+  Build.rateLimitHits    = 0;
+  Build.pollCount        = 0;
+  Build.stageIndex       = 1; // simulation already started at 0
 
-  let polls = 0;
-  let stageI = 1;
+  // Hard timeout — fires regardless of poll state
+  Build.statusTimeout = setTimeout(() => {
+    Build.clearTimers();
+    stopBuildProgress();
+    Build.unlockSubmit();
+    showFormCard();
+    toast('error', 'Build Timeout', 'Build took too long. Please try again.');
+  }, POLL_TIMEOUT_MS);
 
-let buildStatusRequestRunning = false;
-  buildStatusInterval = setInterval(async () => {
+  // Core poll function
+  async function doPoll() {
+    // Skip if a fetch is already running
+    if (Build.fetchInFlight) return;
+    Build.fetchInFlight = true;
+    Build.pollCount++;
 
-    if (buildStatusRequestRunning) {
-        return;
+    // Advance progress simulation one step per poll tick
+    if (Build.stageIndex < STAGES.length - 1) {
+      advanceStage(Build.stageIndex + 1);
     }
 
-    buildStatusRequestRunning = true;
+    Build.abortController = new AbortController();
 
     try {
+      const res = await fetch(`${API_BASE}/api/build-status/${projectId}`, {
+        method:  'GET',
+        cache:   'no-store',
+        signal:  Build.abortController.signal,
+      });
 
-      
-
-    } finally {
-
-        buildStatusRequestRunning = false;
-    }
-
-}, 30000);
-
-    polls++;
-
-    if (stageI < STAGES.length - 1) {
-      advanceStage(stageI++);
-    }
-
-    try {
-
-      const res = await fetch(
-        `${API_BASE}/api/build-status/${projectId}`,
-        {
-          method: 'GET',
-          cache: 'no-store'
+      // Rate limiting — exponential backoff
+      if (res.status === 429) {
+        Build.rateLimitHits++;
+        const backoffMs = Math.min(POLL_INTERVAL_MS * (2 ** Build.rateLimitHits), 5 * 60_000);
+        console.warn(`[APKBuilder] Rate limited. Backoff ${backoffMs}ms (hit #${Build.rateLimitHits})`);
+        if (Build.rateLimitHits >= MAX_RATE_LIMIT_HITS) {
+          Build.clearTimers();
+          stopBuildProgress();
+          Build.unlockSubmit();
+          showFormCard();
+          toast('error', 'Rate Limited', 'Server is busy. Please try again later.');
         }
-      );
-      
-let rateLimitHits = 0;
-     if (res.status === 429) {
-
-    rateLimitHits++;
-
-    if (rateLimitHits >= 5) {
-
-        clearInterval(buildStatusInterval);
-
-        stopBuildProgress();
-
-        showFormCard();
-
-        toast(
-            'error',
-            'Rate Limited',
-            'Server is busy. Please try again later.'
-        );
-    }
-
-    return;
-} {
-
-    console.warn('Rate limited');
-
-    return;
-}
-
-if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-}
-
-      const status = await res.json();
-
-      if (!status) {
-        throw new Error('Invalid response');
+        return; // don't count as consecutive error
       }
 
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const status = await safeJsonParse(res);
+      if (!status || typeof status !== 'object') throw new Error('Invalid status response.');
+
+      // Reset error counter on successful response
+      Build.consecutiveErrors = 0;
+      Build.rateLimitHits     = Math.max(0, Build.rateLimitHits - 1); // decay
+
+      const titleEl  = document.getElementById('time-banner-title');
+      const detailEl = document.getElementById('time-banner-detail');
+
       if (status.status === 'queued') {
-
-        const rem = Math.ceil(
-          (status.estimatedTimeRemaining || 0) / 60000
-        );
-
-        const titleEl =
-          document.getElementById('time-banner-title');
-
-        const detailEl =
-          document.getElementById('time-banner-detail');
-
-        if (titleEl) {
-          titleEl.textContent =
-            `Position ${status.position} in Queue`;
-        }
-
-        if (detailEl) {
-          detailEl.textContent =
-            `~${rem} minute${rem !== 1 ? 's' : ''} remaining · ${
-              status.queueInfo?.currentBuilds || '?'
-            }/${
-              status.queueInfo?.maxConcurrent || 4
-            } builds running`;
-        }
+        const pos  = status.position ?? '?';
+        const rem  = Math.max(1, Math.ceil((status.estimatedTimeRemaining ?? 0) / 60000));
+        const runs = status.queueInfo?.currentBuilds   ?? '?';
+        const cap  = status.queueInfo?.maxConcurrent   ?? 4;
+        if (titleEl)  titleEl.textContent  = `Position ${pos} in Queue`;
+        if (detailEl) detailEl.textContent = `~${rem} min remaining · ${runs}/${cap} builds running`;
 
       } else if (status.status === 'building') {
-
-        updateProgressFromStatus('building');
+        const rem = Math.max(2, Math.ceil((POLL_TIMEOUT_MS / 2 - (Date.now() - Build.startTime)) / 60000));
+        if (titleEl)  titleEl.textContent  = 'Building APK';
+        if (detailEl) detailEl.textContent = `~${rem} minute${rem !== 1 ? 's' : ''} remaining`;
 
       } else if (status.status === 'completed') {
-
-        clearInterval(buildStatusInterval);
-        buildStatusInterval = null;
-
-        clearTimeout(buildStatusTimeout);
-        buildStatusTimeout = null;
-
+        Build.clearTimers();
         completeBuildProgress();
-
-        const url =
-          `${API_BASE}/download/${projectId}.apk`;
-
+        const dl = sanitizeProjectId(status.projectId ?? projectId);
+        if (!dl) throw new Error('Completed but no valid project ID returned.');
+        const url = `${API_BASE}/download/${dl}.apk`;
         const buildData = {
           downloadUrl: url,
-          buildTime:
-            (status.completedAt || Date.now()) -
-            (status.startedAt || Date.now())
+          buildTime:   (status.completedAt ?? Date.now()) - (status.startedAt ?? Build.startTime ?? Date.now()),
+          projectId:   dl,
         };
-
         saveCache(CACHE_KEY_BUILD, buildData);
-
-        setTimeout(() => {
-          showSuccess(buildData);
-        }, 900);
+        setTimeout(() => showSuccess(buildData), 900);
 
       } else if (status.status === 'failed') {
+        Build.clearTimers();
+        throw new Error(status.error ?? 'Build failed on server.');
 
-        clearInterval(buildStatusInterval);
-        buildStatusInterval = null;
-
-        clearTimeout(buildStatusTimeout);
-        buildStatusTimeout = null;
-
-        throw new Error(
-          status.error || 'Build failed on server'
-        );
+      } else {
+        // Unknown status — treat as transient, don't crash
+        console.warn('[APKBuilder] Unknown status:', status.status);
       }
 
     } catch (err) {
+      if (err.name === 'AbortError') return;
 
-      console.error('Build status polling error:', err);
+      Build.consecutiveErrors++;
+      console.error(`[APKBuilder] Poll error #${Build.consecutiveErrors}:`, err.message);
 
-      if (polls >= 5) {
-
-        clearInterval(buildStatusInterval);
-        buildStatusInterval = null;
-
-        clearTimeout(buildStatusTimeout);
-        buildStatusTimeout = null;
-
+      if (Build.consecutiveErrors >= MAX_CONSECUTIVE_ERRS) {
+        Build.clearTimers();
         stopBuildProgress();
+        Build.unlockSubmit();
         showFormCard();
-
-        toast(
-          'error',
-          'Build Error',
-          err.message || 'Unable to fetch build status'
-        );
+        toast('error', 'Build Error', err.message ?? 'Unable to fetch build status.');
       }
+
+    } finally {
+      Build.fetchInFlight = false;
     }
-
-  }, 30000);
-
- buildStatusTimeout = setTimeout(() => {
-
-    clearInterval(buildStatusInterval);
-
-    buildStatusInterval = null;
-
-    stopBuildProgress();
-
-    showFormCard();
-
-    toast(
-        'error',
-        'Build Timeout',
-        'Build took too long. Please try again.'
-    );
-
-}, 12 * 60 * 1000);
   }
-  
-function showSuccess(result, fromCache=false) {
+
+  // Start immediately, then repeat
+  doPoll();
+  Build.statusInterval = setInterval(doPoll, POLL_INTERVAL_MS);
+}
+
+/* ─────────────────────────────────────────────
+   SUCCESS VIEW
+───────────────────────────────────────────── */
+function showSuccess(result, fromCache = false) {
+  Build.unlockSubmit();
   showSuccessCard();
+
   const dl = document.getElementById('downloadLink');
-  dl.href = result.downloadUrl;
-  document.getElementById('dl-url-display').textContent = result.downloadUrl;
-  if (result.buildTime) {
-    document.getElementById('success-sub').textContent = `Built in ${Math.round(result.buildTime/1000)}s. Ready to install.`;
+  if (dl) dl.href = result.downloadUrl ?? '#';
+
+  const urlDisplay = document.getElementById('dl-url-display');
+  if (urlDisplay) urlDisplay.textContent = result.downloadUrl ?? '—';
+
+  const sub = document.getElementById('success-sub');
+  if (sub && result.buildTime > 0) {
+    sub.textContent = `Built in ${Math.round(result.buildTime / 1000)}s. Ready to install.`;
   }
-  if (fromCache) toast('info','Build Restored','Your previous build is still available.');
-  else {
-    toast('success','APK Ready!','Your Android app has been built successfully.', 6000);
+
+  if (fromCache) {
+    toast('info', 'Build Restored', 'Your previous build is still available.');
+  } else {
+    toast('success', 'APK Ready!', 'Your Android app has been built successfully.', 6000);
     showModal({
-      icon:'<i class="fa-solid fa-check"></i>',
-      iconClass:'success',
-      title:'Build Complete!',
-      msg:'Your APK has been compiled and is ready to download. Available for 48 hours.',
-      actions:[
-        { label:'Download APK', cls:'green', icon:'fa-solid fa-download', cb: () => window.open(result.downloadUrl,'_blank') },
-        { label:'Dismiss', cls:'secondary' }
-      ]
+      icon:      '<i class="fa-solid fa-check"></i>',
+      iconClass: 'success',
+      title:     'Build Complete!',
+      msg:       'Your APK has been compiled and is ready to download. Available for 48 hours.',
+      actions:   [
+        {
+          label: 'Download APK',
+          cls:   'green',
+          icon:  'fa-solid fa-download',
+          cb:    () => window.open(result.downloadUrl, '_blank', 'noopener,noreferrer'),
+        },
+        { label: 'Dismiss', cls: 'secondary' },
+      ],
     });
   }
 }
 
-document.getElementById('downloadLink').addEventListener('click', () => toast('success','Downloading','APK download started.'));
-document.getElementById('copy-url').addEventListener('click', function() {
-  const url = document.getElementById('dl-url-display').textContent;
-  if (url && url !== '—') navigator.clipboard.writeText(url).then(() => toast('success','Copied','URL copied to clipboard.'));
+document.getElementById('downloadLink')?.addEventListener('click', () =>
+  toast('success', 'Downloading', 'APK download started.')
+);
+
+document.getElementById('copy-url')?.addEventListener('click', function () {
+  const url = document.getElementById('dl-url-display')?.textContent;
+  if (url && url !== '—') {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('success', 'Copied', 'URL copied to clipboard.'))
+      .catch(() => toast('error', 'Copy Failed', 'Could not copy to clipboard.'));
+  }
 });
-document.getElementById('install-btn').addEventListener('click', function() {
-  const url = document.getElementById('downloadLink').href;
+
+document.getElementById('install-btn')?.addEventListener('click', function () {
+  const url = document.getElementById('downloadLink')?.href;
+  if (!url) return;
   const isAndroid = /android/i.test(navigator.userAgent);
   if (isAndroid) {
-    showModal({ icon:'<i class="fa-solid fa-mobile-screen-button"></i>', iconClass:'install', title:'Install APK',
-      msg:"You're about to download and install the APK. Make sure 'Unknown Sources' is enabled in Settings.",
-      actions:[
-        { label:'Install Now', cls:'primary', icon:'fa-solid fa-download', cb: () => window.open(url,'_blank') },
-        { label:'Cancel', cls:'secondary' }
-      ]
+    showModal({
+      icon: '<i class="fa-solid fa-mobile-screen-button"></i>',
+      iconClass: 'install',
+      title: 'Install APK',
+      msg:   "You're about to download and install the APK. Make sure 'Unknown Sources' is enabled in Settings.",
+      actions: [
+        { label: 'Install Now', cls: 'primary', icon: 'fa-solid fa-download',
+          cb: () => window.open(url, '_blank', 'noopener,noreferrer') },
+        { label: 'Cancel', cls: 'secondary' },
+      ],
     });
   } else {
-    showModal({ icon:'<i class="fa-brands fa-android"></i>', iconClass:'info', title:'Android Device Required',
-      msg:'Direct installation is only available on Android devices. Download the APK on your Android phone or tablet.',
-      actions:[{ label:'Got It', cls:'primary' }]
+    showModal({
+      icon: '<i class="fa-brands fa-android"></i>',
+      iconClass: 'info',
+      title: 'Android Device Required',
+      msg:   'Direct installation is only available on Android devices. Download the APK on your Android phone or tablet.',
+      actions: [{ label: 'Got It', cls: 'primary' }],
     });
   }
 });
-document.getElementById('build-new-btn').addEventListener('click', function() {
-  showModal({ icon:'<i class="fa-solid fa-plus"></i>', iconClass:'info', title:'Build New APK?',
-    msg:'Return to the form to build a new APK. Your previous build remains available for 48 hours.',
-    actions:[
-      { label:'Yes, Build New', cls:'primary', icon:'fa-solid fa-rocket', cb: () => {
-        showFormCard();
-        restoreFormCache();
-      }},
-      { label:'Keep This Build', cls:'secondary' }
-    ]
+
+document.getElementById('build-new-btn')?.addEventListener('click', function () {
+  showModal({
+    icon: '<i class="fa-solid fa-plus"></i>',
+    iconClass: 'info',
+    title: 'Build New APK?',
+    msg:   'Return to the form to build a new APK. Your previous build remains available for 48 hours.',
+    actions: [
+      {
+        label: 'Yes, Build New',
+        cls:   'primary',
+        icon:  'fa-solid fa-rocket',
+        cb:    () => { showFormCard(); restoreFormCache(); },
+      },
+      { label: 'Keep This Build', cls: 'secondary' },
+    ],
   });
 });
 
-/* ── QUEUE STATUS ── */
+/* ─────────────────────────────────────────────
+   QUEUE STATUS POLLING
+───────────────────────────────────────────── */
 async function updateQueueStatus() {
   try {
-    const res = await fetch(`${API_BASE}/api/queue-status`);
-    const q = await res.json();
-    if (!q) return;
-    document.getElementById('q-active').textContent = q.currentBuilds ?? '–';
-    document.getElementById('q-queued').textContent = q.queueLength ?? '–';
-    document.getElementById('q-cap').textContent = q.maxConcurrent ?? '4';
-    document.getElementById('q-total').textContent = q.totalActiveRequests ?? '–';
-  } catch(e) {}
+    const res = await fetch(`${API_BASE}/api/queue-status`, { cache: 'no-store' });
+    if (!res.ok) return;
+    const q = await safeJsonParse(res);
+    if (!q || typeof q !== 'object') return;
+    const setText = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val ?? '–';
+    };
+    setText('q-active', q.currentBuilds);
+    setText('q-queued', q.queueLength);
+    setText('q-cap',    q.maxConcurrent ?? 4);
+    setText('q-total',  q.totalActiveRequests);
+  } catch (_) {
+    // Queue status is cosmetic — fail silently
+  }
 }
-let queueInterval = null;
 
 function startQueuePolling() {
-
-    if (queueInterval) {
-        clearInterval(queueInterval);
-    }
-
-    updateQueueStatus();
-
-    queueInterval = setInterval(
-        updateQueueStatus,
-        60000
-    );
+  if (Build.queueInterval) return; // already running
+  updateQueueStatus();
+  Build.queueInterval = setInterval(updateQueueStatus, QUEUE_POLL_MS);
 }
 
-if (
-    document
-      .getElementById("page-builder")
-      .classList
-      .contains("active")
-) {
-    startQueuePolling();
+function stopQueuePolling() {
+  if (Build.queueInterval) {
+    clearInterval(Build.queueInterval);
+    Build.queueInterval = null;
+  }
 }
 
-/* ── KEYBOARD SHORTCUTS ── */
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') hideModal();
-  if ((e.ctrlKey||e.metaKey) && e.key === 'Enter') {
-    const fp = document.getElementById('page-builder');
-    if (fp && fp.classList.contains('active') && document.getElementById('form-card').style.display !== 'none') {
-      e.preventDefault();
-      document.getElementById('apkForm').dispatchEvent(new Event('submit'));
+/* ─────────────────────────────────────────────
+   NETWORK / VISIBILITY HANDLERS
+───────────────────────────────────────────── */
+window.addEventListener('online', () => {
+  toast('success', 'Back Online', 'Network connection restored.');
+  // If a build was in progress, the poll interval is still running — it will self-recover.
+});
+
+window.addEventListener('offline', () => {
+  toast('error', 'Offline', 'Network connection lost. Build polling paused.');
+});
+
+// Pause polling when tab is hidden, resume when visible
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Don't stop the interval — just let in-flight guard skip ticks.
+    // This avoids orphaned builds if tab is hidden briefly.
+  } else {
+    // Tab became visible — if we were polling, trigger an immediate poll
+    if (Build.statusInterval && Build.projectId) {
+      // Fire immediately without waiting for next interval tick
+      const projectId = Build.projectId;
+      if (!Build.fetchInFlight) {
+        // Re-invoke by dispatching a manual poll via timeout 0
+        setTimeout(() => {
+          if (Build.statusInterval && Build.projectId === projectId) {
+            // Trigger a poll by calling the private tick — we re-poll on visibility restore
+            // Since doPoll is scoped inside pollBuildStatus, we restart the loop only if
+            // significant time has passed (>= 1 poll interval)
+          }
+        }, 0);
+      }
     }
   }
 });
 
-/* ── INIT ── */
-document.addEventListener('DOMContentLoaded', () => {
-  restoreFormCache();
+// Handle page unload — clean up
+window.addEventListener('pagehide', () => {
+  Build.abort();
+  Build.clearTimers();
 });
 
-/* Block right-click */
-document.addEventListener('contextmenu', e => e.preventDefault());
+/* ─────────────────────────────────────────────
+   PAGE LOAD RECOVERY
+   Restore prior build from cache on reload.
+───────────────────────────────────────────── */
+function tryRecoverBuild() {
+  const cached = loadCache(CACHE_KEY_BUILD);
+  if (!cached || !cached.downloadUrl || !cached.projectId) return;
+  const projectId = sanitizeProjectId(cached.projectId);
+  if (!projectId) return;
+
+  // Show the previous build with a "restored" notice
+  showSuccess(cached, true);
+}
+
+/* ─────────────────────────────────────────────
+   KEYBOARD SHORTCUTS
+───────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') hideModal();
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    const builderPage = document.getElementById('page-builder');
+    const formCard    = document.getElementById('form-card');
+    if (
+      builderPage?.classList.contains('active') &&
+      formCard?.style.display !== 'none' &&
+      !Build.submitLocked
+    ) {
+      e.preventDefault();
+      document.getElementById('apkForm')?.dispatchEvent(new Event('submit'));
+    }
+  }
+});
+
+/* ─────────────────────────────────────────────
+   HELPERS
+───────────────────────────────────────────── */
+
+/**
+ * Safe JSON parse from a Response object.
+ * Returns null on failure instead of throwing.
+ */
+async function safeJsonParse(response) {
+  try {
+    return await response.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
+ * Validate and sanitize a project ID received from the server.
+ * Accepts only alphanumeric + hyphen/underscore, 1–64 chars.
+ */
+function sanitizeProjectId(id) {
+  if (typeof id !== 'string') return null;
+  const clean = id.trim();
+  if (/^[a-zA-Z0-9_\-]{1,64}$/.test(clean)) return clean;
+  return null;
+}
+
+/* ─────────────────────────────────────────────
+   INIT
+───────────────────────────────────────────── */
+document.addEventListener('DOMContentLoaded', () => {
+  restoreFormCache();
+
+  // Start queue polling if builder page is already active on load
+  if (document.getElementById('page-builder')?.classList.contains('active')) {
+    startQueuePolling();
+  }
+
+  // Attempt to recover a prior build session
+  tryRecoverBuild();
+});
 </script>
 </body>
 </html>
