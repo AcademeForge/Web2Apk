@@ -1501,9 +1501,16 @@ function pollBuildStatus(projectId) {
         }
       );
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+     if (res.status === 429) {
+
+    console.warn('Rate limited');
+
+    return;
+}
+
+if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+}
 
       const status = await res.json();
 
@@ -1605,15 +1612,24 @@ function pollBuildStatus(projectId) {
 
   }, 30000);
 
-  buildStatusTimeout = setTimeout(() => {
+ buildStatusTimeout = setTimeout(() => {
 
     clearInterval(buildStatusInterval);
+
     buildStatusInterval = null;
 
-    buildStatusTimeout = null;
+    stopBuildProgress();
 
-  }, 12 * 60 * 1000);
-}
+    showFormCard();
+
+    toast(
+        'error',
+        'Build Timeout',
+        'Build took too long. Please try again.'
+    );
+
+}, 12 * 60 * 1000);
+  
 function showSuccess(result, fromCache=false) {
   showSuccessCard();
   const dl = document.getElementById('downloadLink');
